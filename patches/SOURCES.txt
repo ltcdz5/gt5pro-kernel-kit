@@ -1,0 +1,9 @@
+本目录说明（opt7-clean 起）
+  001-lz4.patch / lz4armv8.S        已应用：lz4 升到 1.10.0
+  002-zstd.patch                    已应用：zstd 升到 1.5.7
+  cve-2026-43499-rtmutex-6.1.patch  已应用：rtmutex CVE 修复
+  config.patch                      builder 自带；⚠️ 它会往 kernel/Makefile 注入 config_fix(谎报 /proc/config.gz)
+                                     ⇒ opt7-clean 起在构建脚本里显式拆掉，见 README §14
+  apk_sign.patch                    未使用（签名相关，与本机无关）
+  未使用-69_hide_stuff.patch        ⛔ 未使用：SUSFS 隐藏钩子。本内核明确不带 SUSFS/隐藏功能
+                                     （已实测：全树 susfs 命中 0、Image 内 susfs 字符串 0）

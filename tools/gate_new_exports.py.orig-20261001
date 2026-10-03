@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+"""
+新增导出 ∩ 厂商 .ko 引用名 == 空  =>  可刷(此项通过)
+机理: Android 的 modpost 会把"不在 KMI 白名单里"的外部符号引用编成 weak undefined。
+      内核不导出该符号时, 厂商 .ko 拿到 NULL, 走"跳过"分支;
+      我们一旦把它导出, 守卫翻成"真调用", 而实现读的是厂商模块不认识的内核状态
+      => 活锁 => PMIC 看门狗硬复位(pstore 无记录、bootreason=pmic)。
+CRC 照不到这一类: 两边都有的符号一个都没变, 变的是"本来没有的符号出现了"。
+"""
+import sys, os
+
+VKO = '/home/builder/abi/vko_syms.txt'
+BASE = '/home/builder/opt5-baseline/Module.symvers'   # 现役可开机内核的导出全表
+
+
+def exports(p):
+    s = set()
+    with open(p, errors='replace') as f:
+        for L in f:
+            t = L.rstrip('\n').split('\t')
+            if len(t) >= 4:
+                s.add(t[1])
+    return s
+
+
+def main():
+    if not os.path.exists(VKO):
+        print("缺基准: %s  (从设备 /data/local/tmp/vko_syms.txt 拉取)" % VKO)
+        return 2
+    vko = set(x.strip() for x in open(VKO, errors='replace') if x.strip())
+    base = exports(BASE)
+    print("基准: 厂商 .ko 引用名 %d 个; opt5(能开机) 导出 %d 个" % (len(vko), len(base)))
+    print("=" * 78)
+    rc = 0
+    for p in sys.argv[1:]:
+        cand = exports(p)
+        new = cand - base
+        hit = sorted(new & vko)
+        name = os.path.basename(p)
+        verdict = 'FAIL 判砖' if hit else 'PASS'
+        print("%-26s 新增导出=%-4d 命中厂商引用=%-3d  %s" % (name, len(new), len(hit), verdict))
+        for h in hit[:12]:
+            print("      ⚠ %s  (opt5 未导出; 厂商 .ko 里有这个名字)" % h)
+        if hit:
+            rc = 1
+    print("=" * 78)
+    print("退出码 %d (0=全部通过)" % rc)
+    return rc
+
+
+if __name__ == '__main__':
+    sys.exit(main())

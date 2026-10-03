@@ -1,0 +1,118 @@
+9d91134c165f	2023/10/11 4:00:36	arm64: Avoid repeated AA64MMFR1_EL1 register read on pagefault path
+ff09fa5f23aa	2023/10/11 4:00:37	iommu/arm-smmu-v3: Avoid constructing invalid range commands
+c12ef025add7	2023/10/11 4:00:38	iommu/vt-d: Avoid memory allocation in iommu_suspend()
+2259e1901b2d	2023/10/6 20:56:54	scsi: pm80xx: Avoid leaking tags when processing OPC_INB_SET_CONTROLLER_CONFIG command
+9375ea7f2690	2023/11/20 18:52:09	f2fs: compress: fix to avoid use-after-free on dic
+fb4251dab3d1	2023/11/20 18:52:09	f2fs: compress: fix to avoid redundant compress extension
+2b38f0dbe8ba	2023/11/29 1:07:09	mm/damon/lru_sort: avoid divide-by-zero in hot threshold calculation
+834a800c58ea	2023/11/29 1:07:09	mm/damon/ops-common: avoid divide-by-zero during region hotness calculation
+526dd7540a09	2023/11/29 1:07:19	f2fs: avoid format-overflow warning
+68bc7b200305	2023/12/14 1:39:17	iommu: Avoid more races around device probe
+40f3ad769ec8	2023/12/21 0:00:25	dmaengine: stm32-dma: avoid bitfield overflow assertion
+8ec07b0620ac	2023/12/21 0:00:26	mm/mglru: fix underprotected page cache
+da9b7c651c65	2023/12/21 0:00:26	mm/shmem: fix race in shmem_undo_range w/THP
+cc647e05db67	2023/4/26 20:28:40	mm/userfaultfd: fix uffd-wp handling for THP migration entries
+c8a3341b3392	2023/5/11 22:03:02	rcu: Avoid stack overflow due to __rcu_irq_enter_check_tick() being kprobe-ed
+7d058f0ab161	2023/5/11 22:03:21	f2fs: fix to avoid use-after-free for cached IPU bio
+b3b3f66bd47c	2023/5/11 22:03:37	thermal/drivers/mediatek: Use devm_of_iomap to avoid resource leak in mtk_thermal_probe
+c6cbb4e1c10c	2023/6/21 22:01:02	rcu/kvfree: Avoid freeing new kfree_rcu() memory after old grace period
+8a72260619ca	2023/6/28 17:12:36	nvme: double KA polling frequency to avoid KATO with TBKAS on
+2a72e6814f55	2023/6/9 16:34:23	block: fix revalidate performance regression
+93126e39662b	2023/7/19 22:21:08	mmc: mediatek: Avoid ugly error message when SDIO wakeup IRQ isn't used
+ebe83e9bb8a6	2023/7/19 22:21:55	f2fs: fix to avoid NULL pointer dereference f2fs_write_end_io()
+477bc74ad1ad	2023/7/23 19:49:48	scsi: qla2xxx: Avoid fcport pointer dereference
+9027d69221ff	2023/7/27 14:50:33	rcu-tasks: Avoid pr_info() with spin lock in cblist_init_generic()
+3282e79a85c1	2023/8/30 22:11:12	dma-buf/sw_sync: Avoid recursive lock during fence signal
+4d7e804f49a0	2023/9/13 15:42:55	f2fs: fix to avoid mmap vs set_compress_option case
+980b592c6087	2023/9/19 18:28:05	f2fs: avoid false alarm of circular locking
+f07c0bc27b0e	2023/9/23 17:11:10	nvme: avoid bogus CRTO values
+d2b549d3107b	2024/1/1 20:39:07	scsi: core: Always send batch on reset or error handling command
+f0145860c20b	2024/1/26 7:27:32	f2fs: fix to avoid dirent corruption
+fb711858e669	2024/1/26 7:27:48	nvme: trace: avoid memcpy overflow warning
+a8df791470fb	2024/1/5 22:18:39	mm/filemap: avoid buffered read/write race to read inconsistent data
+4932dfd9b636	2024/10/17 21:21:09	f2fs: fix to avoid racing in between read and OPU dio write
+d59222286cc4	2024/10/17 21:21:22	f2fs: avoid potential int overflow in sanity_check_area_boundary()
+4f946479b326	2024/11/17 22:07:20	nvme: tcp: avoid race between queue_lock lock and destroy
+7443f3e11254	2024/11/22 22:37:34	mm: avoid unsafe VMA hook invocation when error arises on mmap hook
+6c3d83878392	2024/11/8 23:26:39	cpufreq: Avoid a bad reference count on CPU node
+01a0c928832c	2024/11/8 23:26:47	mm: migrate: try again if THP split is failed due to page refcnt
+b3660228db5a	2024/11/8 23:26:48	mm: avoid gcc complaint about pointer casting
+07c0787286da	2024/12/15 2:53:45	f2fs: fix to avoid use GC_AT when setting gc_mode as GC_URGENT_LOW or GC_URGENT_MID
+e92bca0277f3	2024/12/15 2:53:45	f2fs: fix to avoid forcing direct write to use buffered IO on inline_data inode
+be063ffa28bc	2024/12/15 2:54:00	locking/lockdep: Avoid creating new name string literals in lockdep_set_subclass()
+71a7e2f5b667	2024/12/27 20:53:02	io_uring/rw: avoid punting to io-wq directly
+9e6987f8937a	2024/3/1 20:26:28	nvmet-fc: avoid deadlock on delete association path
+67eba3e674a1	2024/3/27 6:20:54	f2fs: compress: fix to avoid inconsistence bewteen i_blocks and dnode
+e85d53ebae88	2024/3/27 6:20:55	scsi: csiostor: Avoid function pointer casts
+fe4de493572a	2024/3/27 6:20:55	f2fs: fix to avoid potential panic during recovery
+449684e376a0	2024/3/27 6:20:56	f2fs: ro: compress: fix to avoid caching unaligned extent
+8745f3592ee4	2024/3/6 22:45:05	iommu/sprd: Release dma buffer to avoid memory leak
+87632bc9ecff	2024/3/6 22:45:06	mm: huge_memory: don't force huge page alignment on 32 bit
+b510fbe3a7bf	2024/4/13 19:04:54	cpuidle: Avoid potential overflow in integer multiplication
+bdba49e46905	2024/4/3 21:19:30	mmc: tmio: avoid concurrent runs of mmc_request_done()
+64c3873cb255	2024/4/3 21:19:43	iommu: Avoid races around default domain allocations
+3372c3ffc345	2024/4/3 21:19:47	mm/migrate: set swap entry values of THP tail pages properly.
+ad9cc5e9e53a	2024/4/3 21:19:49	mmc: core: Avoid negative index with array access
+5f0266044dc6	2024/5/17 17:56:04	scsi: mpi3mr: Avoid memcpy field-spanning write WARNING
+46bab2bcd771	2024/6/21 20:35:44	scsi: mpt3sas: Avoid test/set_bit() operating in non-allocated memory
+c83ed422c24f	2024/7/11 18:47:13	mm: avoid overflows in dirty throttling logic
+ce39d85705d0	2024/7/11 18:47:17	dma-mapping: benchmark: avoid needless copy_to_user if benchmark fails
+bfaf0990f14e	2024/7/18 19:18:43	sched: Move psi_account_irqtime() out of update_rq_clock_task() hotpath
+f3ab45aacd25	2024/7/25 15:49:13	nvme: avoid double free special payload
+f2ba11ba9325	2024/7/27 17:32:18	f2fs: avoid dead loop in f2fs_issue_checkpoint()
+447434eaaf3f	2024/7/5 15:32:00	mm/page_alloc: Separate THP PCP into movable and non-movable categories
+0fd304a885c3	2024/8/11 18:35:53	mm: page_alloc: control latency caused by zone PCP draining
+5eb41c3bf19a	2024/8/11 18:35:53	mm: restrict the pcp batch scale factor to avoid too long latency
+216671e0c4ab	2024/8/11 18:35:54	f2fs: fix to avoid use SSR allocate when do defragment
+6391eb80b81f	2024/8/14 19:52:50	scsi: mpt3sas: Avoid IOMMU page faults on REPORT ZONES
+bd9c447cda12	2024/8/14 19:52:56	scsi: mpi3mr: Avoid IOMMU page faults on REPORT ZONES
+89f2914dd4b4	2024/8/14 19:53:01	mm: huge_memory: use !CONFIG_64BIT to relax huge page alignment on 32 bit machines
+01136f87217d	2024/8/29 23:30:34	nvmet-trace: avoid dereferencing pointer too early
+8de7bf77f210	2024/8/3 14:49:30	mm/mglru: fix div-by-zero in vmpressure_calc_level()
+dfe90030a0cf	2024/8/3 14:49:53	iommu: sprd: Avoid NULL deref in sprd_iommu_hw_en
+65d0db500d7c	2024/9/19 1:23:04	mm: avoid leaving partial pfn mappings around in error case
+756b100543f9	2024/9/4 19:24:58	mmc: Avoid open coding by using mmc_op_tuning()
+0e14b91f8469	2024/9/8 13:52:59	dma-debug: avoid deadlock between dma debug vs printk and netconsole
+20585a2774ac	2024/9/8 13:53:09	cpufreq: scmi: Avoid overflow of target_freq in fast switch
+1e4cbc11493a	2024/9/8 13:53:10	rcu/nocb: Remove buggy bypass lock contention mitigation
+f03e6bb31c83	2025/1/2 17:30:50	dmaengine: apple-admac: Avoid accessing registers in probe
+fdba6d5e4553	2025/1/2 17:30:50	dmaengine: at_xdmac: avoid null_prt_deref in at_xdmac_prep_dma_memset
+a3f8ee15228c	2025/1/9 20:30:06	mm/readahead: fix large folio support in async readahead
+e73fe0eefac3	2025/10/15 17:56:21	scsi: target: target_core_configfs: Add length check to avoid buffer overflow
+957faf9582f9	2025/10/15 17:56:40	mm: hugetlb: avoid soft lockup when mprotect to large memory area
+dbeeee44a391	2025/10/19 22:23:11	cpuidle: governors: menu: Avoid using invalid recent intervals data
+9557ba5fd368	2025/10/2 19:40:37	mm/gup: local lru_add_drain() to avoid lru_add_drain_all()
+857e4357ebf1	2025/10/29 21:04:30	cpufreq: CPPC: Avoid using CPUFREQ_ETERNAL as transition delay
+eeed0eda9c93	2025/10/29 21:04:36	arm64, mm: avoid always making PTE dirty in pte_mkwrite()
+85e2ce1920cb	2025/12/7 5:12:16	nvmet-fc: avoid scheduling association deletion twice
+774dd6f0f0a6	2025/2/21 20:48:56	OPP: add index check to assert to avoid buffer overflow in _read_freq()
+4ff25f0b18d1	2025/2/21 20:49:57	arm64: cacheinfo: Avoid out-of-bounds write to cacheinfo array
+6d816086d78e	2025/3/29 4:58:50	scsi: core: Use GFP_NOIO to avoid circular locking dependency
+98dbf2af63de	2025/4/25 16:43:30	f2fs: fix to avoid out-of-bounds access in f2fs_truncate_inode_blocks()
+4bf6d7defb1f	2025/5/2 13:46:53	dma/contiguous: avoid warning about unused size_bytes
+681400579b88	2025/5/9 15:41:36	cpufreq: Avoid using inconsistent policy->min and policy->max
+04aa1f6d160a	2025/6/4 20:40:01	dma-mapping: avoid potential unused data compilation warning
+a9edb700846a	2025/6/4 20:40:11	cpuidle: menu: Avoid discarding useful information
+b9f7969173ba	2025/6/4 20:40:21	mm/page_alloc.c: avoid infinite retries caused by cpuset race
+7ac1c9f1af18	2025/7/24 14:51:49	pmdomain: governor: Consider CPU latency tolerance from pm_domain_cpu_gov
+6be310c892a4	2025/7/6 16:58:04	arm64: Restrict pagetable teardown to avoid false warning
+917ae5e280bc	2025/8/15 18:05:06	f2fs: fix to avoid UAF in f2fs_sync_inode_meta()
+3466721f06ed	2025/8/15 18:05:07	f2fs: fix to avoid out-of-boundary access in devs.path
+4732ca17c17f	2025/8/15 18:05:07	f2fs: fix to avoid panic in f2fs_evict_inode
+31f2f080898e	2025/8/28 22:26:02	block: avoid possible overflow for chunk_sectors check in blk_stack_limits()
+f0a67dc70b78	2025/8/28 22:26:03	scsi: lpfc: Remove redundant assignment to avoid memory leak
+62879faa8efe	2025/8/28 22:26:04	mm/kmemleak: avoid deadlock by moving pr_warn() outside kmemleak_lock
+f014c10d190b	2025/8/28 22:26:04	mm/kmemleak: avoid soft lockup in __kmemleak_do_cleanup()
+901f62efd6e8	2025/8/28 22:26:15	f2fs: fix to avoid out-of-boundary access in dnode page
+9ff52d3af0ef	2025/8/28 22:26:17	iommu/amd: Avoid stack buffer overflow from kernel cmdline
+1f0797f17927	2025/9/10 0:54:18	mm/slub: avoid accessing metadata when pointer is invalid in object_err()
+994b03b9605d	2025/9/10 0:54:24	mm: slub: avoid wake up kswapd in set_track_prepare
+64dc351e5827	2025/9/19 22:29:57	mm/damon/reclaim: avoid divide-by-zero in damon_reclaim_apply_parameters()
+74e391f7da7d	2025/9/19 22:29:57	mm/damon/lru_sort: avoid divide-by-zero in damon_lru_sort_apply_parameters()
+f3e34622ede1	2026/1/11 22:18:50	mmc: sdhci-msm: Avoid early clock doubling during HS400 transition
+bb7fc2498c3b	2026/3/25 18:03:07	mmc: core: Avoid bitfield RMW for claim/retune flags
+a214fd2e81ff	2026/3/4 20:20:47	mm, page_alloc, thp: prevent reclaim for __GFP_THISNODE THP allocations
+a1f93804449d	2026/6/1 23:38:33	epoll: use refcount to reduce ep_mutex contention
+baf93fdddd58	2026/6/1 23:38:57	cpuidle: powerpc: avoid double clear when breaking snooze
+a696fbbd5240	2026/6/1 23:38:58	nvmet: avoid recursive nvmet-wq flush in nvmet_ctrl_free
+19a62f810d4d	2026/6/19 19:37:02	iommu, debugobjects: avoid gcc-16.1 section mismatch warnings

@@ -1,0 +1,6 @@
+id=lse_sched
+name=LSE 调度扩展（LunarKernel Slim-WALT）
+version=v1.0
+versionCode=1
+author=ltcdz5
+description=开机后【延迟】加载 LSE 模块并启用 lunar_ext_gov 调速器。可调延时见 delay.conf。风驰替代方案，非内核内置。

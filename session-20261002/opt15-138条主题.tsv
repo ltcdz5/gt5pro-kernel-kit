@@ -1,0 +1,171 @@
+015a74476dc1	bpf: Fix regsafe() for pointers to packet
+03695e7a2153	scsi: ufs: core: Include UTP error in INT_FATAL_ERRORS
+06503e360d35	ipv6: annotate data-races in ip6_multipath_hash_{policy,fields}()
+08464413e628	ipv6: validate extension header length before copying to cmsg
+09cbfd4b81ae	ipv6: ioam: add NULL check for idev in ipv6_hop_ioam()
+0a9e8053f1f8	ipv6: rpl: reserve mac_len headroom when recompressed SRH grows
+0bdaf54d3aad	ipv6: avoid overflows in ip6_datagram_send_ctl()
+0d7b33ace701	netfilter: ipset: stop hash:* range iteration at end
+10242e640b36	ext4: validate p_idx bounds in ext4_ext_correct_indexes
+11bd1c279bac	ext4: filesystems without casefold feature cannot be mounted with siphash
+127a6286b84e	ext4: remove unused return value of __mb_check_buddy
+12e13907de47	ipv6: exthdrs: annotate data-race over multiple sysctl
+14200d435af9	ipv6: account for fraggap on the paged allocation path
+149e6b3fdf93	netfilter: xt_socket: enable defrag after all other checks
+14e9bb6eba8f	tcp: call sk_data_ready() after listener migration
+190ad0f22ba4	ext4: xattr: fix null pointer deref in ext4_raw_inode()
+19924bdd8a45	netfilter: nf_queue: hold bridge skb->dev while queued
+1a11eb7431e3	ipv6: exthdrs: refresh nh after handling HAO option
+1add8dff839c	ext4: clear i_state_flags when alloc inode
+1bce219ee551	ext4: fix memory leak in ext4_ext_shift_extents()
+1c9511ce36fa	bpf: Don't use %pK through printk
+1cd6313c8644	netfilter: x_tables: restrict xt_check_match/xt_check_target extensions for NFPROTO_ARP
+1d736ad183ed	scsi: ufs: ufs-pci: Fix S0ix/S3 for Intel controllers
+1f0dbb4247fe	netfilter: nf_conncount: make nf_conncount_gc_list() to disable BH
+1f1b98fea6b9	net/sched: act_api: use RCU with deferred freeing for action lifecycle
+2028405ea698	netfilter: nf_conntrack_expect: skip expectations in other netns via proc
+21a10c06ffae	bpf: reject direct access to nullable PTR_TO_BUF pointers
+2375e0ec3b86	netfilter: Reorder fields in 'struct nf_conntrack_expect'
+23c6cba41564	ext4: mark group extend fast-commit ineligible
+2573fc3bfcdc	net/sched: netem: fix slot delay calculation overflow
+2619499169fb	ipv6: annotate data-race in ndisc_router_discovery()
+2c2c14b7dfcc	scsi: sd: fix missing put_disk() when device_add(&disk_dev) fails
+2c88b2d96e1d	bpf: fix end-of-list detection in cgroup_storage_get_next_key()
+2cc929275d9e	bpf: Fix an issue in bpf_prog_test_run_xdp when page size greater than 4K
+2ecf0aa7cc26	ipv4: ip_gre: make ipgre_header() robust
+2eec9c2a3656	tcp: annotate data-races around (tp->write_seq - tp->snd_nxt)
+30386e090c49	ipv4: Fix reference count leak when using error routes with nexthop objects
+30752d8bbd14	bpf: export bpf_link_inc_not_zero.
+33660d44e789	bpf: Reject narrower access to pointer ctx fields
+3412daaa43f1	ext4: mark group add fast-commit ineligible
+3618b34942b7	ipv6: rpl: fix hdrlen overflow in ipv6_rpl_srh_decompress()
+368569bc546d	bpf: Fix reference count leak in bpf_prog_test_run_xdp()
+3747de241a66	tcp: restrict SO_ATTACH_FILTER to priv users
+38bdbc897c0d	ipv6: fix possible UAF in icmpv6_rcv()
+3948a7d92f76	ipv6: fix possible infinite loop in fib6_select_path()
+3d41f9a314af	net/sched: cls_fw: fix NULL pointer dereference on shared blocks
+41b417ff73a2	netfilter: nf_conntrack_h323: fix OOB read in decode_int() CONS case
+495e97af9e72	netfilter: nf_conntrack_h323: check for zero length in DecodeQ931()
+4a48fe59f29f	ipv6: fix NULL pointer deref in ip6_rt_get_dev_rcu()
+4bf9c3a7ac27	scsi: ufs: core: Fix EH failure after W-LUN resume error
+4c2d9dac4d32	ext4: don't cache extent during splitting extent
+4e270ca1710e	ipv6: np->rxpmtu race annotation
+4e8ebc4c18ea	net/sched: teql: Fix double-free in teql_master_xmit
+4f7d25f3f078	netfilter: ctnetlink: use netlink policy range checks
+5000e40acc8d	bpf: Fix stack-out-of-bounds write in devmap
+50f196d2bbae	crypto: seqiv - Do not use req->iv after crypto_aead_encrypt
+529e685e522b	bpf: Fix a UAF issue in bpf_trampoline_link_cgroup_shim
+53baa63a4183	ipv6: mcast: Fix use-after-free when processing MLD queries
+55576fa14771	ext4: fix dirtyclusters double decrement on fs shutdown
+559e054cc7c8	netfilter: nf_reject: don't reply to icmp error messages
+57cc509d82b4	netfilter: nfnetlink_log: initialize nfgenmsg in NLMSG_DONE terminator
+591c788d1604	bpf: Forget ranges when refining tnum after JSET
+59313621819e	tcp: Fix bind() regression for v6-only wildcard and v4-mapped-v6 non-wildcard addresses.
+5a1cf5746074	ext4: introduce ITAIL helper
+5a564f737ec5	ipv4: raw: reject IP_HDRINCL packets with ihl < 5
+5b23a2ff379e	ipv4: free net->ipv4.sysctl_local_reserved_ports after unregister_net_sysctl_table()
+5b266cf6851c	ext4: add i_data_sem protection in ext4_destroy_inline_data_nolock()
+5d186731bc33	scsi: ufs: core: Flush exception handling work when RPM level is zero
+5dcce34c57d5	net/sched: cls_fw: fix NULL dereference of "old" filters before change()
+5e149d8a8e73	bpf: Add bpf_prog_run_data_pointers()
+5f333ce84c68	net/sched: sch_fq_codel: remove data-races from fq_codel_dump_stats()
+6353d1448ced	tcp: Rearrange tests in inet_csk_bind_conflict().
+64b768404224	netfilter: ctnetlink: remove refcounting in expectation dumpers
+669349b4612c	bpf: reject negative CO-RE accessor indices in bpf_core_parse_spec()
+670887effc42	ipv4: rename and move ip_route_output_tunnel()
+69e72d836536	bpf: Fix precedence bug in convert_bpf_ld_abs alignment check
+6d9a367be356	scsi: core: Wake up the error handler when final completions race against each other
+6e5e32db5b5c	ext4: make recently_deleted() properly work with lazy itable initialization
+6e89d60b4f03	ipv6: Fix use-after-free in inet6_addr_del().
+6f51462304a0	ext4: factor out ext4_percpu_param_init() and ext4_percpu_param_destroy()
+74fcd8e12720	net/sched: netem: fix queue limit check to include reordered packets
+761b45c661af	netfilter: nfnetlink_log: account for netlink header size
+768376ece703	bpf: Do not let BPF test infra emit invalid GSO types to stack
+776ad090f315	scsi: ufs: core: Always initialize the UIC done completion
+790e390abd80	tcp: Use bhash2 for v4-mapped-v6 non-wildcard address.
+7b58c110b4e1	ext4: reject mount if bigalloc with s_first_data_block != 0
+7bfafa1b0cd5	ipv6: prevent possible UaF in addrconf_permanent_addr()
+7c679cbc07f1	bpf: Improve program stats run-time calculation
+7ec84fe014f2	net/sched: sch_cake: fix NAT destination port not being updated in cake_update_flowkeys
+808bf76f4ef6	tcp: Fix imbalanced icsk_accept_queue count.
+81236ea82fce	ext4: increase IO priority of fastcommit
+81f2fc5b0d0c	netfilter: nf_conntrack_h323: fix OOB read in decode_choice()
+82017204b2c7	ipv6: use the right ifindex when replying to icmpv6 from localhost
+8314d3135430	bpf: verifier improvement in 32bit shift sign extension pattern
+8334f8707937	net/sched: netem: validate slot configuration
+8429da2ca513	bpf: Clear pfmemalloc flag when freeing all fragments
+843c1376071e	scsi: ufs: core: fix incorrect buffer duplication in ufshcd_read_string_desc()
+89343ff12b31	ipv4: restrict IPOPT_SSRR and IPOPT_LSRR options
+89c2c41f0974	ext4: refresh inline data size before write operations
+89df6452a154	ext4: fix journal credit check when setting fscrypt context
+8b1251bbf0f1	net/sched: act_gate: snapshot parameters with RCU on replace
+8d5a2c94c24d	netfilter: nf_conncount: rework API to use sk_buff directly
+8e50981d7dcb	bpf: allow UTF-8 literals in bpf_bprintf_prepare()
+93df2af4f491	ipv4: icmp: validate reply type before using icmp_pointers
+98440ef214c1	bpf: Add CHECKSUM_COMPLETE to bpf test progs
+9c67b44edb35	ipv6: sit: reload inner IPv6 header after GSO offloads
+9c90449a9ac2	ext4: fix iloc.bh leak in ext4_fc_replay_inode() error paths
+9d21a6fd3b9d	net/sched: sch_cake: annotate data-races in cake_dump_stats() (V)
+9e1196d27ef4	netfilter: ctnetlink: ensure safe access to master conntrack
+9e883eaa878f	ipv6: exthdrs: refresh nh pointer after ipv6_hop_jumbo()
+9f5e4abed924	scsi: core: Fix refcount leak for tagset_refcnt
+a305ac0b4854	scsi: ufs: core: Add ufshcd_update_evt_hist() for UFS suspend error
+a4437faf135d	ipv6: icmp: clear skb2->cb[] in ip6_err_gen_icmpv6_unreach()
+a64b7bf84b4d	netfilter: ctnetlink: zero expect NAT fields when CTA_EXPECT_NAT absent
+a69dedc3c482	crypto: authenc - use memcpy_sglist() instead of null skcipher
+aa2a7743a44b	crypto: scatterwalk - Backport memcpy_sglist()
+acf62af18c7b	scsi: ufs: ufs-pci: Set UFSHCD_QUIRK_PERFORM_LINK_STARTUP_ONCE for Intel ADL
+ad92ee87462f	netfilter: ipset: drop logically empty buckets in mtype_del
+aeb95146848d	bpf: sockmap: fix tail fragment offset in bpf_msg_push_data
+af25a6affeac	ext4: add bounds check for inline data length in ext4_read_inline_page
+b014a63d2f2c	ipv6: fix possible infinite loop in rt6_fill_node()
+b1700795c842	ext4: correct the checking of quota files before moving extents
+b28e2fcad3db	netfilter: x_tables: avoid leaking percpu counter pointers
+b3171a5e4622	bpf: Check skb->transport_header is set in bpf_skb_check_mtu
+b38d2b4603fd	netfilter: nfnetlink_queue: fix entry leak in bridge verdict error path
+b3fd3e1e0c35	tcp: preserve const qualifier in tcp_sk()
+b5a010bc7dba	ext4: get rid of ppath in ext4_find_extent()
+b706d00206a9	ext4: fix missing brelse() in ext4_xattr_inode_dec_ref_all()
+b8a44407bdaf	ipv4: route: Prevent rt_bind_exception() from rebinding stale fnhe
+b9bc44fd4c9c	scsi: ufs: core: Initialize value of an attribute returned by uic cmd
+bc6b7d18ee01	netfilter: replace -EEXIST with -EBUSY
+be54c0055407	ext4: publish jinode after initialization
+be88a337bf07	netfilter: conntrack: add missing netlink policy validations
+bfe24a48c1d5	ext4: make ext4_es_remove_extent() return void
+c047332be719	ext4: convert inline data to extents when truncate exceeds inline size
+c1c922046e96	ext4: fix incorrect group number assertion in mb_check_buddy
+c360e9d0def4	ext4: always drain queued discard work in ext4_mb_release()
+c3e3fddda6b5	bpf: Free reuseport cBPF prog after RCU grace period.
+c4d829737329	ext4: fix use-after-free in update_super_work when racing with umount
+ca208416a9bd	ext4: factor out ext4_hash_info_init()
+caad62e0a731	netfilter: ipset: use nla_strcmp for IPSET_ATTR_NAME attr
+cb5c028afed9	netfilter: nft_counter: fix reset of counters on 32bit archs
+cc707a4fd4c3	net/sched: cls_flow: fix NULL pointer dereference on shared blocks
+cfa745830e45	net/sched: cls_u32: use skb_header_pointer_careful()
+d1bd8b9edc67	ipv6: add NULL checks for idev in SRv6 paths
+d2d0bae0c9a2	netfilter: xt_CT: drop pending enqueued packets on template removal
+d4c6a6d08e70	crypto: authencesn - reject short ahash digests during instance creation
+d579f496681c	scsi: core: Fix a regression triggered by scsi_host_busy()
+d787279f695a	tcp: tcp_tx_timestamp() must look at the rtx queue
+d906a2d823e2	ext4: use optimized mballoc scanning regardless of inode format
+dc1739eff48e	netfilter: nf_conntrack_helper: pass helper to expect cleanup
+dc5db4db1976	ipv4: icmp: fix null-ptr-deref in icmp_build_probe()
+dfc161396182	crypto: asymmetric_keys - prevent overflow in asymmetric_key_generate_id
+e1828c7a8d81	bpf: Sync pending IRQ work before freeing ring buffer
+e1d1e203a600	bpf: use kvfree() for replaced sysctl write buffer
+e23da16dec5a	ipv6: fix a race in ip6_sock_set_v6only()
+e5f3fcb0a652	bpf: Release module BTF IDR before module unload
+e6aa481f21fc	bpf: reject short IPv4/IPv6 inputs in bpf_prog_test_run_skb
+e76d585ea957	ipv6: Add sanity checks on ipv6_devconf.rpl_seg_enabled
+e7f6cef9d1fc	ipv4: fib: Annotate access to struct fib_alias.fa_state.
+edb513e736ac	crypto: arm64/aes - Fix 32-bit aes_mac_update() arg treated as 64-bit
+f0a54d00d2f3	ipv6: use RCU in ip6_xmit()
+f311a6f97fc2	scsi: core: Fix error handler encryption support
+f5547bebc416	netfilter: conntrack: tcp: do not force CLOSE on invalid-seq RST without direction check
+f89bba144938	ext4: handle wraparound when searching for blocks for indirect mapped blocks
+fb3c380a54e3	net/sched: Only allow act_ct to bind to clsact/ingress qdiscs and shared blocks
+fbfde85308b9	netfilter: nf_conntrack: destroy stale expectfn expectations on unregister
+fc961dd7272b	netfilter: nfnetlink_log: fix uninitialized padding leak in NFULA_PAYLOAD
+fca48518ca82	net/sched: netem: fix probability gaps in 4-state loss model
+ffb5d1c5e393	bpf: Fix bpf_xdp_store_bytes proto for read-only arg
+ffc0a282462d	ext4: avoid allocate block from corrupted group in ext4_mb_find_by_goal()

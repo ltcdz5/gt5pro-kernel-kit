@@ -1,0 +1,61 @@
+#!/system/bin/sh
+# LSE 调度扩展 —— 开机服务
+# ⚠ 本脚本【立即返回】：等待逻辑放后台，避免阻塞其它模块的 service.sh
+MODDIR=${0%/*}
+LOG=/data/local/tmp/lse_module.log
+
+(
+  cd "$MODDIR" || exit 0
+  DELAY=120; SWITCH=1; RESTART_SCENE=1
+  [ -f delay.conf ] && . ./delay.conf
+  DELAY=${DELAY_AFTER_BOOT:-120}
+  SWITCH=${SWITCH_GOVERNOR:-1}
+  RESTART_SCENE=${RESTART_SCENE:-1}
+
+  echo "[$(date)] === service 启动 ===" >> $LOG
+
+  # 1) 等 boot_completed
+  i=0
+  while [ "$(getprop sys.boot_completed)" != "1" ] && [ $i -lt 120 ]; do sleep 5; i=$((i+1)); done
+  echo "[$(date)] boot_completed=$(getprop sys.boot_completed) uptime=$(cut -d. -f1 /proc/uptime)s" >> $LOG
+
+  # 2) ★ 关键延时：避开开机早期（早期加载会卡死循环）
+  echo "[$(date)] 延时 ${DELAY}s 再加载" >> $LOG
+  sleep $DELAY
+  echo "[$(date)] 延时结束 uptime=$(cut -d. -f1 /proc/uptime)s" >> $LOG
+
+  # 3) 加载模块
+  if lsmod | grep -q lunar_bsp_ext_sched; then
+    echo "[$(date)] 已加载，跳过" >> $LOG
+  else
+    insmod "$MODDIR/lunar_bsp_ext_sched.ko" 2>>$LOG && echo "[$(date)] insmod ok" >> $LOG || echo "[$(date)] insmod 失败" >> $LOG
+  fi
+  sleep 2
+
+  # 4) 切调速器
+  if [ "$SWITCH" = "1" ]; then
+    for p in 0 2 5 7; do
+      echo lunar_ext_gov > /sys/devices/system/cpu/cpufreq/policy$p/gov_override 2>/dev/null
+    done
+    echo "[$(date)] 已切 lunar_ext_gov" >> $LOG
+  fi
+
+  # 5) ★ 重启 Scene 及其 daemon
+  #    原因：Scene 在开机早期（模块未加载时）会尝试切 lunar_ext_gov → 失败 → 回退 uag
+  #    并把 uag 缓存在 daemon 里反复下发。杀掉 daemon 让它带"模块已就绪"重读配置。
+  if [ "$RESTART_SCENE" = "1" ] && [ -d /data/data/com.omarea.vtools ]; then
+    echo "[$(date)] 重启 Scene 以重读配置" >> $LOG
+    am force-stop com.omarea.vtools 2>/dev/null
+    pkill -f zn-daemon 2>/dev/null
+    pkill -f zn-nsdaemon 2>/dev/null
+    pkill -f scene-daemon 2>/dev/null
+    sleep 5
+    monkey -p com.omarea.vtools -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
+    sleep 12
+    echo "[$(date)] Scene 已重启" >> $LOG
+  fi
+
+  echo "[$(date)] 最终 governor: $(for p in 0 2 5 7; do cat /sys/devices/system/cpu/cpufreq/policy$p/scaling_governor; done | tr '\n' ' ')" >> $LOG
+) &
+
+exit 0

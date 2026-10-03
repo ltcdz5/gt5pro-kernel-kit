@@ -1,0 +1,3 @@
+# 全部按二进制处理 —— 防止 Windows 检出时把 LF 变 CRLF
+# (patch/sh 一旦被改成 CRLF, patch 命令会直接失败)
+* -text

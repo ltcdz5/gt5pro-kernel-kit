@@ -1,0 +1,6 @@
+id=lru_gen_on
+name=MGLRU Runtime Resume
+version=v3
+versionCode=3
+author=ltcdz5
+description=开机完成后恢复 /sys/kernel/mm/lru_gen 的两项运行时值（enabled=Y、min_ttl_ms=1000）。只写这两个节点，无 bind mount、无属性改动、无注入；卸载时复原。

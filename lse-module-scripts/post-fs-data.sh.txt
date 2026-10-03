@@ -1,0 +1,5 @@
+#!/system/bin/sh
+# ⚠ 这里【故意不做任何事】
+# 原因：在 post-fs-data（开机极早期）加载 LSE 会导致开机卡死循环（已实测）。
+# 加载一律交给 service.sh，并带 120 秒延时。
+exit 0

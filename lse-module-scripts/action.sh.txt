@@ -1,0 +1,29 @@
+#!/system/bin/sh
+# 管理器"操作"按钮：LSE ↔ uag 切换
+# 附加：若场景是"Scene 改不了设置"，执行本脚本时会自动解除 profile.json 的只读
+MODDIR=${0%/*}
+VT=/data/data/com.omarea.vtools/files
+cur=$(cat /sys/devices/system/cpu/cpufreq/policy0/scaling_governor 2>/dev/null)
+
+if [ "$cur" = "lunar_ext_gov" ]; then
+  for p in 0 2 5 7; do echo uag > /sys/devices/system/cpu/cpufreq/policy$p/gov_override 2>/dev/null; done
+  echo "已切回 uag"
+else
+  if ! lsmod | grep -q lunar_bsp_ext_sched; then
+    insmod "$MODDIR/lunar_bsp_ext_sched.ko" 2>/dev/null
+    sleep 2
+  fi
+  for p in 0 2 5 7; do echo lunar_ext_gov > /sys/devices/system/cpu/cpufreq/policy$p/gov_override 2>/dev/null; done
+  echo "已切到 lunar_ext_gov"
+fi
+# 顺手把 profile.json 恢复可写（方便你在 Scene 里改设置；改完想再锁回来就重启）
+if [ -f "$VT/profile.json" ]; then
+  perm=$(stat -c %a "$VT/profile.json")
+  if [ "$perm" = "555" ]; then
+    chmod 600 "$VT/profile.json" 2>/dev/null
+    chown u0_a373:u0_a373 "$VT/profile.json" 2>/dev/null
+    echo "（已把 profile.json 解为可写，方便你在 Scene 里改设置）"
+  fi
+fi
+sleep 2
+echo "当前: $(for p in 0 2 5 7; do cat /sys/devices/system/cpu/cpufreq/policy$p/scaling_governor; done | tr '\n' ' ')"

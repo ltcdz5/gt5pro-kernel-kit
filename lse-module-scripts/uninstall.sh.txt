@@ -1,0 +1,33 @@
+#!/system/bin/sh
+# 卸载：① 调速器还给厂商默认 ② 还原 Scene 配置（内容+权限）③ 重启 Scene
+MODDIR=${0%/*}
+VT=/data/data/com.omarea.vtools/files
+LOG=/data/local/tmp/lse_module.log
+echo "[$(date)] === 卸载：开始还原 ===" >> $LOG
+
+# ① 调速器还给 uag
+for p in 0 2 5 7; do
+  echo uag > /sys/devices/system/cpu/cpufreq/policy$p/gov_override 2>/dev/null
+done
+echo "[$(date)] 调速器已切回 uag" >> $LOG
+
+# ② 还原 Scene 的 profile.json（内容 + 权限 + 属主）
+if [ -f "$MODDIR/scene_profile.orig.json" ] && [ -f "$VT/profile.json" ]; then
+  cp -f "$MODDIR/scene_profile.orig.json" "$VT/.lse_restore_tmp" 2>/dev/null
+  chown u0_a373:u0_a373 "$VT/.lse_restore_tmp" 2>/dev/null
+  chmod 600 "$VT/.lse_restore_tmp" 2>/dev/null
+  mv -f "$VT/.lse_restore_tmp" "$VT/profile.json" 2>/dev/null
+  echo "[$(date)] profile.json 已还原 ($(wc -c < $VT/profile.json) 字节, $(stat -c %A $VT/profile.json))" >> $LOG
+else
+  echo "[$(date)] 跳过 profile 还原（缺少备份或目标）" >> $LOG
+fi
+
+# ③ 重启 Scene 让它重读
+am force-stop com.omarea.vtools 2>/dev/null
+pkill -f zn-daemon 2>/dev/null
+pkill -f zn-nsdaemon 2>/dev/null
+pkill -f scene-daemon 2>/dev/null
+sleep 4
+monkey -p com.omarea.vtools -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
+echo "[$(date)] Scene 已重启；LSE 内核模块要重启才会卸载" >> $LOG
+exit 0
