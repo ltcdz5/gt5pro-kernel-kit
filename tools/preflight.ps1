@@ -119,6 +119,12 @@ if ((Test-Path (Join-Path $Kit 'NOTICE.md')) -and ((Get-Content (Join-Path $Kit 
 # 顶层 .md 数量上限（防止顶层再次膨胀）
 $topMd = @(Get-ChildItem $Kit -Filter '*.md' -File)
 if ($topMd.Count -le 12) { ok ('顶层 .md = ' + $topMd.Count + '（上限 12）') } else { no ('顶层 .md = ' + $topMd.Count + ' 超过上限 12 ⇒ 该进 档案/') }
+# 顶层文档不得有孤儿（无人引用 = 隐形 = 实质臃肿）
+$allMd = @(Get-ChildItem $Kit -Recurse -Filter '*.md' -File)
+$corpus = ''
+foreach ($m in $allMd) { $corpus += (Get-Content $m.FullName -Raw) }
+$orph = @($topMd | Where-Object { $corpus -notmatch [regex]::Escape($_.Name) })
+if ($orph.Count -eq 0) { ok '顶层文档无孤儿（均被引用）' } else { no ('顶层孤儿文档 ' + $orph.Count + ' 份：' + (($orph | ForEach-Object { $_.Name }) -join ', ')) }
 # 档案/ 下每份必须在档案索引里登记
 $arcDir = Join-Path $Kit '档案'
 if (Test-Path $arcDir) {
