@@ -247,6 +247,46 @@ boot_progress_start=12.87s），并与 opt9 一起**验证了这条裁剪规则*
 **合规提示**：该 .ko 是第三方 GPL v2 二进制，本项目**没有它的源码** ⇒ 再分发必须提供源码
 ⇒ **公开仓库不放 .ko**，只放我们原创的管理脚本外壳 + 完整风险文档。
 
+### 7. v1.1-opt46 —— BBRv3 移植，**闸门2 判死**（367/493 模块会拒载）
+
+**做了什么**：把上游作者本人（Mubashir Adnan Qureshi, Google）的 BBRv3 20 补丁系列（176 KB）用 git am -3 全套到分支 opt46（基于 opt45）：
+20/20 全部套上，仅 net/ipv4/Kconfig 一处冲突（取 v3 描述 + 保留本树 TCP_CONG_BRUTAL 块）；**make rc=0**（22 文件 / +2200 −550，新增 net/ipv4/tcp_plb.c 并进 Makefile）。
+
+**为什么判死**（同一条命令的对照）：
+
+| 镜像 | 闸门1 | 闸门2（会拒绝装载的模块） |
+|---|---|---|
+| opt5 基准 / opt42 / opt44 | — | **1**（只有 bluetooth / sk_filter_trim_cap 基线） |
+| opt46（BBRv3） | 新增=53 消失=1，命中厂商 0/0，遮蔽=0 → PASS | **367 / 493** |
+
+- 共有符号 CRC 漂移 **2546 / 15437**（skb_pull、__alloc_skb、__dev_queue_xmit、__fib_lookup、wake_up_process …，连不相关的调度符号都被带变）
+- 受害名单含 cnss2 / icnss2 / cfg80211 / mac80211（WiFi）、bluetooth / btqca、oplus_bsp_tp_*（触控）、hybridswap_zram / lz4k、sched_ext、game_opt ⇒ 刷上去 lsmod 会从 621 大幅掉落
+
+**根因（逐行看过 diff，两点都不是「能折中」的）**：
+
+1. include/net/inet_connection_sock.h：**ICSK_CA_PRIV_SIZE 104 → 144**
+   —— 该成员是 struct inet_connection_sock 的**最后一个成员**，且它被 struct tcp_sock 内嵌 ⇒ TCP 侧 CRC 全线漂移。
+   上游之所以要提这个数，是因为 **BBRv3 的 struct bbr 状态根本装不进 104B** ⇒ 这是「**装不下**」，不是写法问题。
+2. include/net/netns/ipv4.h：struct netns_ipv4 新增 5 个 PLB 字段 ⇒ **struct net 变大** ⇒ 级联整个 net 子系统。
+
+（唯一 ABI 安全处：include/linux/tcp.h 的位域复用 unused:5 → fast_ack_mode:2 + tlp_orig_data_app_limited:1 + unused:2，尺寸不变。）
+
+**复现命令**：
+
+    cd /home/builder/kwork/cctv18/repo/local/kernel_workspace/common   # 分支 opt46
+    git checkout opt46
+    python3 kernel-kit/tools/gate_new_exports.py out/vmlinux.symvers
+    python3 kernel-kit/tools/gate_vko_crc.py out/vmlinux.symvers <vendor-ko 目录>
+    # 期望：闸门2 = 367；同一条命令打 opt44 的 vmlinux.symvers 应为 1
+    # 漂移计数：out/vmlinux.symvers vs perf44 的 symvers → 2546 / 15437
+
+**留档要求**：分支 opt46 **保留不删**（否证档）；**编号不复用**（下一个正常版本从 opt47 起）；out/ 产物标 ⛔ 不可用（防误刷）。
+
+**由此得到的通用硬约束（重要）**：改动「会被导出函数用作签名」的结构体（struct sock / tcp_sock / task_struct / net …）
+⇒ genksyms 沿指针类型图递归展开 ⇒ CRC 成批漂移 ⇒ 厂商模块成批拒载。
+上游「大版本特性移植」（BBRv3 / 新版 sched_ext / 风驰 hmbird）在本约束下**不可行**；
+可持续的增量只有 **纯函数体修复 + config 层改动 + 删/禁类改动**。
+
 ---
 
 ## 四、字段来源与核对方式
