@@ -157,8 +157,7 @@ fastboot reboot
 - 原厂底包：`images/boot_a.img`（md5 `a33ff9988e5ffa6a40a13b1c8dad4abb`，**永不删**）；`init_boot_a.img` 不要动（LKM root 在里面）。
 - git 锚点：**`v1.1-opt42`=`77aa56a8024c`（现役交付）**、`v1.1-opt41`=`e5f8f1aa13a8`（回退）、基线 `7a244ff18`(cctv18)、
   开发树 HEAD=`66b2bf8c`(`v1.1-opt44`，含未采用的 `gov_override`) —— **那是开发分支，不是交付版**；`opt43`(scx 硬挂死)/`opt44` 均已否证，勿刷。
-- 配套源码仓库 [`ltcdz5/gt5pro-kernel-src`](https://github.com/ltcdz5/gt5pro-kernel-src)：**分支 `opt42` = 现役源码快照**；
-  `main` 上仍是最早的 2026-09-29 快照（未动）。
+- 配套源码仓库 [`ltcdz5/gt5pro-kernel-src`](https://github.com/ltcdz5/gt5pro-kernel-src)：**`main` 与 `opt42` 都是现役源码快照**（`main` 已于 2026-10-04 快进到 `a4428da6`，**默认分支即现役源码**）；另有 `history` 分支放逐版补丁序列（审计用）。
 
 ## 10. 开机慢：两个**并联**的坑（2026-09-29 全部修掉，87 秒 → 26 秒）
 > ⚠️ 两个坑同时在跑，开机时长由更长那头封顶 ⇒ **只修任何一个几乎看不到收益**（实测只修坑1：72821→71383，省 1.4 秒）。

@@ -18,7 +18,7 @@
 | 镜像 | boot-v1.1-opt42-repacked.img，md5 4bd362b0a17513474de217ea9beb8ae3（201,326,592 B） |
 | 裸内核 | perf42/Image.opt42，md5 2e20e2c1b7dea60cdfee3d58a730a79f |
 | 回退首选 | boot-v1.1-opt41-repacked.img，md5 8e449caedeb1791923393c9c4eb2245f |
-| 源码快照 | 仓库 ltcdz5/gt5pro-kernel-src 分支 opt42 = a4428da6（main 上仍是最早的 2026-09-29 快照） |
+| 源码快照 | 仓库 ltcdz5/gt5pro-kernel-src：**main 与 opt42 均为 a4428da6**（main 已于 2026-10-04 快进到现役 ⇒ 默认分支即现役源码） |
 | Release | **建在源码仓库**：[gt5pro-kernel-src 的 tag v1.1-opt42](https://github.com/ltcdz5/gt5pro-kernel-src/releases/tag/v1.1-opt42) ⇒ 直接指向该版源码快照 a4428da6（**不建在工具仓库**） |
 | 上机时刻 | 2026-10-04 01:12 刷入，现役 |
 | 观察期状态 | **作废重算过 1 次**（《发布规范》§二 的首次实际应用）。原窗口 2026-10-04 01:12 → 10-05 01:12；**Scene 更新为 N1 2026.10 Alpha11**（lastUpdateTime = 2026-10-04 02:08）⇒ 外围更新即作废重算 ⇒ **新窗口 2026-10-04 02:15 → 10-05 02:15**。<br>发布本身经机主 2026-10-04 决定**提前发布**（按 §二属例外，记录在案）。 |
