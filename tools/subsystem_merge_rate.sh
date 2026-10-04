@@ -9,7 +9,7 @@
 # 只读: 按子系统量 stable 142~145 的"能干净落地"数 —— 判每个方向有没有料可取
 set -u
 C=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
-P=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/patches/stable
+P=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/patches/stable
 cd "$C" || exit 1
 git config --global --add safe.directory "$C" 2>/dev/null
 for v in 142 143 144 145; do xz -dc "$P/patch-6.1.$v.xz" > /tmp/sub$v; done

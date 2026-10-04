@@ -34,7 +34,7 @@ echo "  test_task_ux 镜像内=$(strings -a "$OUT/Image.opt12" | grep -c test_ta
 echo "  config 与 opt11 差 $(diff "$W/config.base" out/.config | grep -cE '^[<>]') 行"
 
 echo '=== 3) 三道闸 ==='
-python3 /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools/gate_new_exports.py "$OUT/vmlinux.symvers.opt12"
+python3 /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools/gate_new_exports.py "$OUT/vmlinux.symvers.opt12"
 python3 - <<'PY'
 import struct
 PAT=bytes([0x9f,0xeb,0x01,0x00,0x18,0x00,0x00,0x00])
@@ -60,8 +60,8 @@ echo "  $(git log --oneline -1)"
 
 echo '=== 5) repack ==='
 cp -f "$OUT/Image.opt12" /tmp/Image.opt12
-cd /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools
-python3 repack_any.py /tmp/Image.opt12 /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/boot-opt12-repacked.img 2>&1 | tail -4
-md5sum /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/boot-opt12-repacked.img
+cd /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools
+python3 repack_any.py /tmp/Image.opt12 /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/boot-opt12-repacked.img 2>&1 | tail -4
+md5sum /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/boot-opt12-repacked.img
 echo "  树脏=$(git status --porcelain | wc -l)"
 echo "=== 结束 $(date) ==="

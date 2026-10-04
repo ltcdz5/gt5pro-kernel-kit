@@ -4,8 +4,8 @@
 python3 - <<'PY'
 import struct, os, re
 CANDS = [
- r"C:\Users\USERNAME\Desktop\gt5pro-kernel\images\boot_a.img",
- r"C:\Users\USERNAME\Desktop\gt5pro-kernel\images\不能刷-裸内核\boot-opt5-ltcdz5-raw.img",
+ r"C:\Users\xutengfa\Desktop\gt5pro-kernel\images\boot_a.img",
+ r"C:\Users\xutengfa\Desktop\gt5pro-kernel\images\不能刷-裸内核\boot-opt5-ltcdz5-raw.img",
 ]
 MAGIC = bytes([0xd0,0x0d,0xfe,0xed])
 

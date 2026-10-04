@@ -11,7 +11,7 @@
 set -e
 TREE=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
 BASE=/home/builder/opt5-baseline
-WIN=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images
+WIN=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images
 cd "$TREE" || exit 1
 export PATH="$HOME/kwork/kernel_manifest/workspace/toolchains/clang/bin:$PATH"
 git config --global --add safe.directory "$TREE" 2>/dev/null
@@ -51,7 +51,7 @@ echo "  与 opt5 比消失的导出=$(comm -23 <(cut -f2 "$BASE/Module.symvers" 
 md5sum /home/builder/a3probe/Image.a3
 
 echo "=== 5) repack 成可刷 img(命名标明是待判试验件) ==="
-cd /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools
+cd /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools
 python3 repack_any.py /home/builder/a3probe/Image.a3 "$WIN/试验-a3-未真机验证.img" 2>&1 | tail -6
 cp -f /home/builder/a3probe/Image.a3 "$WIN/不能刷-裸内核/boot-opt6a3-split.raw.img"
 echo "=== 结束 $(date) ==="

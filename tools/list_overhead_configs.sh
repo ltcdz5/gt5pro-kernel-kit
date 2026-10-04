@@ -20,7 +20,7 @@ for L in io.open(C+'/out/.config', encoding='utf-8', errors='replace'):
     if m: mine[m.group(1)]='n'
 st={}
 import gzip
-for L in gzip.open('/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/refs/stock_config.gz','rb').read().decode('utf-8','replace').splitlines():
+for L in gzip.open('/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/refs/stock_config.gz','rb').read().decode('utf-8','replace').splitlines():
     m=re.match(r'(CONFIG_[A-Za-z0-9_]+)=(.*)',L)
     if m: st[m.group(1)]=m.group(2); continue
     m=re.match(r'#\s*(CONFIG_[A-Za-z0-9_]+)\s+is not set',L)

@@ -1,5 +1,5 @@
 #!/bin/bash
-LOG=/c/Users/USERNAME/Desktop/zip_verify_log.txt
+LOG=/c/Users/xutengfa/Desktop/zip_verify_log.txt
 exec > "$LOG" 2>&1
 echo "[$(date +%T)] 校验 E:\kworks 里的 zip 是否完整"
 

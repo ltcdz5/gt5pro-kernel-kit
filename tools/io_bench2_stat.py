@@ -7,7 +7,7 @@
 #            UY-Scuti / libbpf-bpftool / sched-ext / LunarKernel LSE 等）
 # ---------------------------------------------------------------------------
 import re, statistics as st
-P='/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/logs/io-bench2.txt'
+P='/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/logs/io-bench2.txt'
 L=[l for l in open(P,encoding='utf-8',errors='replace')]
 def grab(pat):
     out=[]

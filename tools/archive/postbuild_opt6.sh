@@ -16,6 +16,6 @@ for o in fs/eventpoll.o fs/f2fs/checkpoint.o net/unix/garbage.o mm/memory.o kern
 done
 echo
 echo "=== 把裸 Image 复制到 Windows 侧 ==="
-cp -f out/arch/arm64/boot/Image "/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/boot-opt6-ltcdz5-up0914-raw.img"
-ls -la /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/boot-opt6-ltcdz5-up0914-raw.img
+cp -f out/arch/arm64/boot/Image "/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/boot-opt6-ltcdz5-up0914-raw.img"
+ls -la /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/boot-opt6-ltcdz5-up0914-raw.img
 md5sum out/arch/arm64/boot.Image out/arch/arm64/boot/Image 2>/dev/null | tail -1

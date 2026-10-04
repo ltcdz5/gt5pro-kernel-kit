@@ -1,5 +1,5 @@
 #!/bin/bash
-K=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel
+K=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel
 B=/home/builder/opt5-baseline
 V=$K/kernel-kit/verify_image.sh
 for pair in "opt6(砖)|$B/Image.opt6" \

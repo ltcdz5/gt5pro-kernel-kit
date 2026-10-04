@@ -7,7 +7,7 @@
 #   借鉴   : 见 NOTICE.md 第三节
 # ---------------------------------------------------------------------------
 # 从 7 个裸 Image 里抠出 BTF 类型表并验可读
-WIN=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/不能刷-裸内核
+WIN=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/不能刷-裸内核
 TREE=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
 D=/home/builder/abi/btf
 mkdir -p "$D"

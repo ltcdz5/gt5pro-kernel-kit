@@ -1,7 +1,7 @@
 # 刷 opt15 到 boot_a —— 一条命令跑完全流程（含电量门槛与 md5 核验）
 #
 # 用法（管理员 PowerShell）:
-#     powershell -ExecutionPolicy Bypass -File "C:\Users\USERNAME\Desktop\gt5pro-kernel\kernel-kit\tools\刷opt15.ps1"
+#     powershell -ExecutionPolicy Bypass -File "C:\Users\xutengfa\Desktop\gt5pro-kernel\kernel-kit\tools\刷opt15.ps1"
 #     powershell -ExecutionPolicy Bypass -File "...\刷opt15.ps1" -Force   # 跳过电量门槛(不推荐)
 #
 # 纪律：只写 boot_a。绝不碰 init_boot / devinfo / abl / xbl / vbmeta / super / userdata / boot_b。
@@ -16,7 +16,7 @@ $ErrorActionPreference = 'Stop'
 
 $ADB      = 'D:\gaojizhushou\adb.exe'
 $FASTBOOT = 'D:\gaojizhushou\fastboot.exe'
-$IMG      = 'C:\Users\USERNAME\Desktop\gt5pro-kernel\images\boot-opt15-repacked.img'
+$IMG      = 'C:\Users\xutengfa\Desktop\gt5pro-kernel\images\boot-opt15-repacked.img'
 $EXPECT_MD5 = '600b612f95faed6d6daf4f6d0eb2c871'
 $EXPECT_RAW_MD5 = '25df97f4642b77712008c0129f795527'   # 裸 Image 的 md5，写进日志备查
 
@@ -85,6 +85,6 @@ Start-Sleep -Seconds 25
 
 Write-Host "`n完成。上面 uname -a 应出现 opt15 横幅。" -ForegroundColor Green
 Write-Host "回退（任何不对就这一条）:" -ForegroundColor Yellow
-Write-Host "  & '$FASTBOOT' flash boot_a 'C:\Users\USERNAME\Desktop\gt5pro-kernel\images\boot-opt14-repacked.img'"
+Write-Host "  & '$FASTBOOT' flash boot_a 'C:\Users\xutengfa\Desktop\gt5pro-kernel\images\boot-opt14-repacked.img'"
 Write-Host "  & '$FASTBOOT' set_active a"
 Write-Host "  & '$FASTBOOT' reboot"

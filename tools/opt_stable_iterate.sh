@@ -10,7 +10,7 @@
 # 用法: OPT=opt12 BASE=<基线分支> VERS="151 152 ..." bash opt_stable_iterate.sh
 set -u
 T=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
-P=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/patches/stable
+P=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/patches/stable
 export PATH="/home/builder/kwork/kernel_manifest/workspace/toolchains/clang/bin:$PATH"
 OPT=${OPT:?要给定 OPT(如 opt12)}
 BASE=${BASE:?要给定 BASE(基线分支)}

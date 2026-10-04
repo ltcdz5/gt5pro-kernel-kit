@@ -7,9 +7,9 @@
 #   借鉴   : 见 NOTICE.md 第三节
 # ---------------------------------------------------------------------------
 # 正对照 + hmbird 查询, 全走文件避免引号问题
-F=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/vendor-ko/vko_strings.txt.gz
+F=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/vendor-ko/vko_strings.txt.gz
 ls -l "$F" 2>&1 | sed 's/^/文件: /'
-G=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/vendor-ko/vko_strings.txt
+G=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/vendor-ko/vko_strings.txt
 ls -l "$G" 2>&1 | sed 's/^/未压: /'
 echo "总行数=$(zcat "$F" 2>/dev/null | wc -l)"
 echo

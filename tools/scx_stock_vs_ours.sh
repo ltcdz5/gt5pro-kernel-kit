@@ -7,7 +7,7 @@
 #   借鉴   : 见 NOTICE.md 第三节
 # ---------------------------------------------------------------------------
 # 对拍: 原厂 boot_a.img 与我们的 opt9 —— 原厂内核里有没有内置的 scx 调度器
-cd /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images || exit 1
+cd /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images || exit 1
 for f in boot_a.img boot-opt9-repacked.img boot-cctv-6.1.141-repacked.img; do
   [ -f "$f" ] || { echo "缺 $f"; continue; }
   echo "================= $f"

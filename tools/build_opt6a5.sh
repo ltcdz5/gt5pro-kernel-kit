@@ -11,7 +11,7 @@
 set -e
 TREE=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
 BASE=/home/builder/opt5-baseline
-WIN=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images
+WIN=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images
 cd "$TREE" || exit 1
 export PATH="/home/builder/kwork/kernel_manifest/workspace/toolchains/clang/bin:$PATH"
 git config --global --add safe.directory "$TREE" 2>/dev/null
@@ -51,7 +51,7 @@ a=names('/home/builder/opt5-baseline/Module.symvers'); c=names('/home/builder/a5
 print("  vmlinux 导出数: opt5=%d a5=%d  新增=%s" % (len(a), len(c), sorted(c-a)))
 PY
 echo "=== 5) repack ==="
-cd /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools
+cd /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools
 python3 repack_any.py /home/builder/a5probe/Image.a5 "$WIN/试验-a5-未真机验证.img" 2>&1 | tail -4
 md5sum "$WIN/试验-a5-未真机验证.img"
 echo "=== 结束 $(date) ==="

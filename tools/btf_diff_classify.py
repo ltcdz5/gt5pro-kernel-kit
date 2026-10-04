@@ -7,7 +7,7 @@
 #            UY-Scuti / libbpf-bpftool / sched-ext / LunarKernel LSE 等）
 # ---------------------------------------------------------------------------
 import re, subprocess, collections
-FULL='/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/vendor-ko-symbols.txt'
+FULL='/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/vendor-ko-symbols.txt'
 T='/home/builder/kwork/cctv18/repo/local/kernel_workspace/common/'
 diff=subprocess.run(['diff','/home/builder/abi/full/opt11.txt','/home/builder/abi/full/opt12.txt'],capture_output=True,text=True).stdout
 # 取差异里出现的成员名, 再回到 opt12 全文里找它所属的 struct 名

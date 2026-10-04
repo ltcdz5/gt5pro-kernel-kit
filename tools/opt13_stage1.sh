@@ -10,7 +10,7 @@
 set -e
 T=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
 B=/home/builder/opt13base
-KIT=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit
+KIT=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit
 export PATH="/home/builder/kwork/kernel_manifest/workspace/toolchains/clang/bin:$PATH"
 cd "$T" || exit 1
 mkdir -p "$B"

@@ -6,7 +6,7 @@
 #   来源   : 本仓库自有工具；派生/借鉴第三方者逐条注明于下，并汇总于根 NOTICE.md
 #   借鉴   : 见 NOTICE.md 第三节
 # ---------------------------------------------------------------------------
-WIN='/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/不能刷-裸内核'
+WIN='/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/不能刷-裸内核'
 echo '=== 每个裸 Image 的完整版本串(含编译器指纹) ==='
 for f in "$WIN"/*.img; do
   printf '%-34s ' "$(basename "$f" | sed 's/^boot-//; s/\.raw\.img$//')"

@@ -9,7 +9,7 @@
 set -u
 T=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
 OUT=/home/builder/opt10probe
-IMG=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images
+IMG=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images
 cd "$T" || exit 1
 git config --global --add safe.directory "$T" 2>/dev/null
 echo "=== 1) 提交 opt10 源码状态(只提交已跟踪文件, 防卷入未跟踪残留) ==="
@@ -34,7 +34,7 @@ SHA=$(git rev-parse --short HEAD)
 
 echo "=== 2) repack ==="
 cp -f "$OUT/Image.opt10" /tmp/Image.opt10
-cd /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools
+cd /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools
 python3 repack_any.py /tmp/Image.opt10 "$IMG/boot-opt10-repacked.img" 2>&1 | tail -6
 md5sum "$IMG/boot-opt10-repacked.img"
 ls -l "$IMG/boot-opt10-repacked.img" | sed 's/^/  /'

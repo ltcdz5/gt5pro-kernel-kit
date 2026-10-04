@@ -52,7 +52,7 @@ cp -f out/vmlinux.symvers "$OUT/vmlinux.symvers.opt9"; cp -f out/System.map "$OU
 cp -f out/arch/arm64/boot/Image "$OUT/Image.opt9"
 md5sum "$OUT/Image.opt9"
 echo "  test_task_ux 镜像内出现=$(strings -a $OUT/Image.opt9 | grep -c test_task_ux) 基线=$(strings -a $BASE/Image.opt5 | grep -c test_task_ux)"
-python3 /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools/gate_new_exports.py "$OUT/vmlinux.symvers.opt9"
+python3 /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools/gate_new_exports.py "$OUT/vmlinux.symvers.opt9"
 echo "=== 5) 布局比对(opt9 vs opt5) ==="
 python3 - <<'PY'
 import struct
@@ -64,6 +64,6 @@ PY
 pahole /home/builder/abi/btf/opt9.btf > /home/builder/abi/full/opt9.txt 2>/dev/null
 echo "  全类型差异行数=$(diff /home/builder/abi/full/opt5.txt /home/builder/abi/full/opt9.txt | grep -cE '^[<>]')  (opt8 是 12 行)"
 echo "=== 6) repack ==="
-cd /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools
-python3 repack_any.py "$OUT/Image.opt9" /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/备件-opt9-未刷.img 2>&1 | tail -4
+cd /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools
+python3 repack_any.py "$OUT/Image.opt9" /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/备件-opt9-未刷.img 2>&1 | tail -4
 echo "=== 结束 $(date) ==="

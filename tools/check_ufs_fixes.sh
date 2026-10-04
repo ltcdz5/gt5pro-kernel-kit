@@ -8,7 +8,7 @@
 # ---------------------------------------------------------------------------
 # 判定 5 条上游 UFS 核心修复是否已在我们树里: 反向套成功=已合入
 cd /home/builder/kwork/cctv18/repo/local/kernel_workspace/common || exit 1
-P=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/patches/ufs-upstream
+P=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/patches/ufs-upstream
 declare -A NAME=(
  [776ad090f]="Always initialize the UIC done completion"
  [4a07d6ce4]="Move link recovery for hibern8 exit failure to wl_resume"

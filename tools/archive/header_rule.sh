@@ -1,5 +1,5 @@
 #!/bin/bash
-T=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools
+T=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools
 TREE=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
 cd "$TREE" 2>/dev/null
 echo '=== A) -a 那一轮的文件清单(和 -a2 差什么) ==='
@@ -18,7 +18,7 @@ git diff --name-only snap-6.1.141 opt5-state 2>/dev/null | grep -E '^include/' |
 
 echo
 echo '=== D) 厂商 .ko 有没有在本地留档(能做 import 闭集闸吗) ==='
-ls -d /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/*ko* /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/**/*.ko 2>/dev/null | head -5
+ls -d /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/*ko* /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/**/*.ko 2>/dev/null | head -5
 find /home/builder -maxdepth 3 -name '*.ko' 2>/dev/null | head -5
-find /mnt/c/Users/USERNAME/Desktop -maxdepth 3 -name '*.ko' 2>/dev/null | head -8
-echo "  本地 .ko 计数=$(find /home/builder /mnt/c/Users/USERNAME/Desktop -name '*.ko' 2>/dev/null | wc -l)"
+find /mnt/c/Users/xutengfa/Desktop -maxdepth 3 -name '*.ko' 2>/dev/null | head -8
+echo "  本地 .ko 计数=$(find /home/builder /mnt/c/Users/xutengfa/Desktop -name '*.ko' 2>/dev/null | wc -l)"

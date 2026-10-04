@@ -9,7 +9,7 @@
 # 导出表逐名对比: opt5(能开) vs opt6(砖) 的 Module.symvers, 点名"opt5 有而 opt6 没有"的符号。
 # 再用字符串 intersect 在 7 个裸 Image 里查这些符号到底还进不进 __ksymtab。
 BASE=/home/builder/opt5-baseline
-WIN='/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/不能刷-裸内核'
+WIN='/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/不能刷-裸内核'
 ls -l "$BASE/Module.symvers" "$BASE/Module.symvers.opt6" 2>&1
 
 python3 - <<'PY'
@@ -34,7 +34,7 @@ probe = gone if gone else ['schedtune_task_boost']
 if 'schedtune_task_boost' not in probe: probe.append('schedtune_task_boost')
 print()
 print("=== 在裸 Image 里查这些符号是否还作为字符串存在(=是否进 __ksymtab_strings) ===")
-imgs = sorted(glob.glob('/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/不能刷-裸内核/*.img'))
+imgs = sorted(glob.glob('/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/不能刷-裸内核/*.img'))
 cache={}
 for p in imgs:
     d=open(p,'rb').read()

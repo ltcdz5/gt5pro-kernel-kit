@@ -38,4 +38,4 @@ done
 echo
 echo "=== 6) 原厂内核里 hmbird 是真的编进去了吗(符号地址) ==="
 echo "  注: 我们的 System.map(opt5) 里 hmbird 行数=$(grep -ic hmbird /home/builder/opt5-baseline/System.map)"
-strings -a /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/boot_a.img | grep -iE 'hmbird' | sort -u | head -12 | sed 's/^/     原厂串: /'
+strings -a /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/boot_a.img | grep -iE 'hmbird' | sort -u | head -12 | sed 's/^/     原厂串: /'

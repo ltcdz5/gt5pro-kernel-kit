@@ -8,8 +8,8 @@
 # ---------------------------------------------------------------------------
 # 给 images/ 做一份"哪个文件是什么"的清单：大小 + md5 + 用途（用途由人工填，脚本只保证数是真的）
 set -u
-cd /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images || exit 1
-OUT=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/清单.txt
+cd /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images || exit 1
+OUT=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/清单.txt
 {
   echo "# images/ 文件清单（$(date '+%Y-%m-%d %H:%M') 生成，逐文件 md5）"
   echo "# 用途列是人工标注，改文件后请重跑本脚本（tools/images_出清单.sh）"

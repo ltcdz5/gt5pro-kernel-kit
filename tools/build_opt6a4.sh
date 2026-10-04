@@ -13,7 +13,7 @@
 set -e
 TREE=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
 BASE=/home/builder/opt5-baseline
-WIN=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images
+WIN=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images
 cd "$TREE" || exit 1
 export PATH="/home/builder/kwork/kernel_manifest/workspace/toolchains/clang/bin:$PATH"
 git config --global --add safe.directory "$TREE" 2>/dev/null
@@ -66,7 +66,7 @@ for x in sorted(c-a)[:10]: print("     +", x)
 for x in sorted(a-c)[:10]: print("     -", x)
 PY
 echo "=== 5) repack ==="
-cd /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools
+cd /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools
 python3 repack_any.py /home/builder/a4probe/Image.a4 "$WIN/试验-a4-未真机验证.img" 2>&1 | tail -5
 md5sum "$WIN/试验-a4-未真机验证.img"
 echo "=== 结束 $(date) ==="

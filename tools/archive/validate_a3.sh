@@ -25,7 +25,7 @@ for x in sorted(a-c): print("     -", x)
 PY
 echo
 echo '=== 4) a3 的 BTF 类型空间 vs opt5(抽 BTF 后全类型比) ==='
-WIN=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images
+WIN=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images
 mkdir -p /home/builder/abi/btf
 python3 - <<'PY'
 import struct

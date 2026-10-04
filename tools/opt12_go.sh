@@ -11,4 +11,4 @@ export OPT=opt12
 export BASE=opt11-stable150
 export VERS="$(seq 151 188 | tr '\n' ' ')"
 echo "启动参数: OPT=$OPT BASE=$BASE VERS=$VERS"
-exec bash /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools/opt_stable_iterate.sh
+exec bash /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools/opt_stable_iterate.sh

@@ -2,7 +2,7 @@
 # 静置期唤醒源采样：灭屏 → 设备侧自采两份(间隔 120s) → 期间 PC 不发任何 adb 命令(我自己就是唤醒源) → 拉回
 set -u
 ADB=/d/gaojizhushou/adb.exe
-OUT=/c/Users/USERNAME/Downloads
+OUT=/c/Users/xutengfa/Downloads
 "$ADB" shell input keyevent 26
 echo "已发灭屏 $(date '+%H:%M:%S')"
 sleep 3

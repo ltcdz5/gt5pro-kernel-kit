@@ -11,7 +11,7 @@ for k in CONFIG_ARCH_VIRT CONFIG_VIRTIO CONFIG_VIRTIO_MENU CONFIG_VIRTIO_BLK CON
 done
 echo
 echo "=== 本地能拿来喂 QEMU 的裸内核 Image ==="
-ls -l /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/不能刷-裸内核/ 2>/dev/null
+ls -l /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/不能刷-裸内核/ 2>/dev/null
 echo "--- out/ 里现在这份是谁 ---"
 md5sum /home/builder/kwork/cctv18/repo/local/kernel_workspace/common/out/arch/arm64/boot/Image 2>/dev/null
 ls -l /home/builder/opt5-baseline/

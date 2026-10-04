@@ -11,7 +11,7 @@
 # 闸2(构建后): 新导出 ∩ 厂商 .ko 引用名 必须为空  —— 由 gate_new_exports.py 做
 set -u
 T=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
-P=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/patches/stable
+P=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/patches/stable
 W=/home/builder/opt10
 mkdir -p "$W"
 cd "$T" || exit 1

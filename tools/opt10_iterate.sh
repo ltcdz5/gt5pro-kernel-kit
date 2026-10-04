@@ -84,7 +84,7 @@ cp -f out/System.map "$OUT/System.map.opt10"
 cp -f out/arch/arm64/boot/Image "$OUT/Image.opt10"
 md5sum "$OUT/Image.opt10" | sed 's/^/  /'
 echo "  test_task_ux 镜像内=$(strings -a "$OUT/Image.opt10" | grep -c test_task_ux)  opt5基线=$(strings -a "$BASE/Image.opt5" | grep -c test_task_ux)"
-python3 /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools/gate_new_exports.py "$OUT/vmlinux.symvers.opt10"
+python3 /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools/gate_new_exports.py "$OUT/vmlinux.symvers.opt10"
 echo "  config 与 opt9 差异行数=$(diff "$W/config.opt9" out/.config | grep -cE '^[<>]')"
 echo "=== 全类型布局比对 ==="
 python3 - <<'PY'

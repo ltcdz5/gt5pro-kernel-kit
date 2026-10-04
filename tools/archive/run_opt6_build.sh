@@ -11,6 +11,6 @@ which clang; clang --version 2>&1 | head -1
 echo "=== 起点 Image 时间戳(用于确认产物是本轮新出的) ==="
 ls -la "$TREE/out/arch/arm64/boot/Image" 2>/dev/null || echo "  (无旧 Image)"
 echo "=== 开始 $(date) ==="
-bash local/builder_6.1.141.sh 2>&1 | tee /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/opt6_build.log
+bash local/builder_6.1.141.sh 2>&1 | tee /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/opt6_build.log
 echo "=== 结束 $(date) ==="
 ls -la "$TREE/out/arch/arm64/boot/Image"

@@ -1,3 +1,5 @@
+# ⚠️ 已作废（2026-10-04）：本脚本按 gh-proxy 冻结镜像工作，会得出「没有新东西」的假结论。
+#    请改用 b1_fetch_ack.sh（v2：权威源 android.googlesource.com + fail-closed）。
 #!/bin/bash
 # ---------------------------------------------------------------------------
 # gt5pro-kernel-kit / tools/b2_harvest_ack.sh
@@ -8,7 +10,7 @@
 # ---------------------------------------------------------------------------
 # 按 path 拉 ACK 的提交(含 patch), 合成一个补丁集; 秒级~分钟级, 只几 MB
 set -u
-OUT=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/patches/ack-0709
+OUT=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/patches/ack-0709
 mkdir -p "$OUT"
 SHA=android14-6.1-2025-09
 SINCE=2025-07-01T00:00:00Z

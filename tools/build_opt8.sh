@@ -12,7 +12,7 @@ PATCH=/home/builder/opt6_upstream.patch
 TREE=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
 BASE=/home/builder/opt5-baseline
 OUT=/home/builder/opt8probe
-WIN=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images
+WIN=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images
 LOG=/home/builder/opt8.decision
 cd "$TREE" || exit 1
 export PATH="/home/builder/kwork/kernel_manifest/workspace/toolchains/clang/bin:$PATH"
@@ -96,5 +96,5 @@ strings out/arch/arm64/boot/Image | grep -m1 'Linux version' | cut -c1-100
 cp -f out/vmlinux.symvers "$OUT/vmlinux.symvers.opt8"; cp -f out/System.map "$OUT/System.map.opt8"
 cp -f out/arch/arm64/boot/Image "$OUT/Image.opt8"
 echo "  镜像里 test_task_ux 出现次数(应 0 或 1, 不得进 __ksymtab)=$(strings -a $OUT/Image.opt8 | grep -c test_task_ux)  基线 opt5=$(strings -a $BASE/Image.opt5 | grep -c test_task_ux)"
-python3 /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools/gate_new_exports.py "$OUT/vmlinux.symvers.opt8"
+python3 /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools/gate_new_exports.py "$OUT/vmlinux.symvers.opt8"
 echo '=== 结束 '$(date)' ==='

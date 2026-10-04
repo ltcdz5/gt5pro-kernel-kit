@@ -8,7 +8,7 @@
 # ---------------------------------------------------------------------------
 # 从 strings 全量导出"厂商 .ko 引用的符号名全集"(本地去重, 不在设备上 sort), 然后回验闸门
 set -u
-SRC=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/vendor-ko/vko_strings.txt
+SRC=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/vendor-ko/vko_strings.txt
 OUT=/home/builder/abi/vko_syms.txt
 [ -s "$SRC" ] || { echo "缺 $SRC"; exit 1; }
 grep -oE '[a-zA-Z_][a-zA-Z0-9_]{5,}' "$SRC" | sort -u > "$OUT"
@@ -16,10 +16,10 @@ echo "厂商 .ko 名字全集: $(wc -l < "$OUT") 个 (旧基准 34,666 个=截�
 for k in test_task_ux schedtune_task_boost; do
   printf '  关键名校验 %-22s 命中=%s\n' "$k" "$(grep -cx "$k" "$OUT")"
 done
-cp -f "$OUT" /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/vendor-ko-symbols.txt
+cp -f "$OUT" /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/vendor-ko-symbols.txt
 echo
 echo '================ 闸门回验(已知结局的镜像) ================'
-python3 /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools/gate_new_exports.py \
+python3 /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools/gate_new_exports.py \
   /home/builder/a4probe/vmlinux.symvers.a4 \
   /home/builder/opt5-baseline/Module.symvers.opt6
 echo

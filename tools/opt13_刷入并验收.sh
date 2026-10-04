@@ -10,7 +10,7 @@
 set -u
 ADB=/d/gaojizhushou/adb.exe
 FB=/d/gaojizhushou/fastboot.exe
-IMG=/c/Users/USERNAME/Desktop/gt5pro-kernel/images/boot-opt13-repacked.img
+IMG=/c/Users/xutengfa/Desktop/gt5pro-kernel/images/boot-opt13-repacked.img
 
 echo "== 步骤1 进 fastboot $(date '+%H:%M:%S')"
 "$ADB" reboot bootloader

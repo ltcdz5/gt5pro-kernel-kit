@@ -14,7 +14,7 @@ T=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
 BASE=/home/builder/opt5-baseline
 W=/home/builder/opt11
 OUT=/home/builder/opt11probe
-P=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/patches/stable
+P=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/patches/stable
 export PATH="/home/builder/kwork/kernel_manifest/workspace/toolchains/clang/bin:$PATH"
 cd "$T" || exit 1
 git config --global --add safe.directory "$T" 2>/dev/null
@@ -109,7 +109,7 @@ cp -f out/vmlinux.symvers "$OUT/vmlinux.symvers.opt11"
 cp -f out/arch/arm64/boot/Image "$OUT/Image.opt11"
 md5sum "$OUT/Image.opt11" | sed 's/^/  /'
 echo "  config 与 opt10 差 $(diff "$W/config.opt10" out/.config | grep -cE '^[<>]') 行"
-python3 /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools/gate_new_exports.py "$OUT/vmlinux.symvers.opt11"
+python3 /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools/gate_new_exports.py "$OUT/vmlinux.symvers.opt11"
 python3 - <<'PY'
 import struct
 PAT=bytes([0x9f,0xeb,0x01,0x00,0x18,0x00,0x00,0x00])

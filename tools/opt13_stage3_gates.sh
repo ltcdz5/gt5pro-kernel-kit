@@ -11,8 +11,8 @@ T=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
 B=/home/builder/opt13base
 D=/home/builder/abi/btf
 F=/home/builder/abi/full
-V=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/vendor-ko-symbols.txt
-K=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit
+V=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/vendor-ko-symbols.txt
+K=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit
 export PATH="/home/builder/kwork/kernel_manifest/workspace/toolchains/clang/bin:$PATH"
 mkdir -p "$D" "$F"
 cd "$T" || exit 1

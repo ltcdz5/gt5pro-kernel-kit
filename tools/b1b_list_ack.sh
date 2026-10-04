@@ -1,3 +1,5 @@
+# ⚠️ 已作废（2026-10-04）：本脚本按 gh-proxy 冻结镜像工作，会得出「没有新东西」的假结论。
+#    请改用 b1_fetch_ack.sh（v2：权威源 android.googlesource.com + fail-closed）。
 #!/bin/bash
 # ---------------------------------------------------------------------------
 # gt5pro-kernel-kit / tools/b1b_list_ack.sh
@@ -22,7 +24,7 @@ if [ -n "$BASE" ]; then
   git rev-list --reverse "$BASE..$TIP" --format='%h|%ad|%s' --date=short 2>/dev/null | grep -v '^[0-9a-f]\{40\}$' > /tmp/ack_shas.txt
   wc -l < /tmp/ack_shas.txt | sed 's/^/清单行数 = /'
   head -3 /tmp/ack_shas.txt | sed 's/^/  /'
-  cp /tmp/ack_shas.txt /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/logs/ack_commit_list.txt
+  cp /tmp/ack_shas.txt /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/logs/ack_commit_list.txt
 fi
 echo
 echo "=== 若基线缺失: 单独补一条 commit-only fetch(只几 MB) ==="
@@ -31,6 +33,6 @@ if [ -z "$BASE" ]; then
     https://gh-proxy.com/https://github.com/aosp-mirror/kernel_common \
     refs/tags/android14-6.1-2025-07_r9:refs/tags/ackbase07r9 2>&1 | tail -3
   echo "  补取后: $(git rev-list --count refs/tags/ackbase07r9..refs/remotes/ack/a14-09 2>/dev/null) 条"
-  git rev-list --reverse refs/tags/ackbase07r9..refs/remotes/ack/a14-09 --format='%h|%ad|%s' --date=short 2>/dev/null | grep -v '^[0-9a-f]\{40\}$' > /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/logs/ack_commit_list.txt
-  wc -l < /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/logs/ack_commit_list.txt | sed 's/^/  清单行数 = /'
+  git rev-list --reverse refs/tags/ackbase07r9..refs/remotes/ack/a14-09 --format='%h|%ad|%s' --date=short 2>/dev/null | grep -v '^[0-9a-f]\{40\}$' > /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/logs/ack_commit_list.txt
+  wc -l < /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/logs/ack_commit_list.txt | sed 's/^/  清单行数 = /'
 fi

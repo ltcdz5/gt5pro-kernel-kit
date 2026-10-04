@@ -1,7 +1,7 @@
 #!/bin/bash
 # 正确 magic = 0xEB9F。在裸 Image 里定位 BTF 并抠出来, 用 pahole 验能否读
 set -e
-WIN=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/不能刷-裸内核
+WIN=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/不能刷-裸内核
 TREE=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
 mkdir -p /home/builder/abi/btf
 

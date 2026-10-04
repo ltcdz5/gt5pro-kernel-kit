@@ -1,9 +1,9 @@
 #!/bin/bash
-LOG=/c/Users/USERNAME/Desktop/wslcfg_log.txt
+LOG=/c/Users/xutengfa/Desktop/wslcfg_log.txt
 exec > "$LOG" 2>&1
 echo "[$(date +%T)] start"
 
-WC="/c/Users/USERNAME/.wslconfig"
+WC="/c/Users/xutengfa/.wslconfig"
 echo "=== 1) 现有 .wslconfig ==="
 if [ -f "$WC" ]; then
   cat "$WC"

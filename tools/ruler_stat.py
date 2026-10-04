@@ -47,7 +47,7 @@ def trim_outliers(xs, k=1.5):
     return [x for x in xs if lo <= x <= hi]
 
 if __name__ == "__main__":
-    p = sys.argv[1] if len(sys.argv) > 1 else r"C:\Users\USERNAME\AppData\Local\Temp\boot_ruler.tsv"
+    p = sys.argv[1] if len(sys.argv) > 1 else r"C:\Users\xutengfa\AppData\Local\Temp\boot_ruler.tsv"
     rows = load(p)
     print(f"=== {p} ===")
     print(f"共 {len(rows)} 轮")

@@ -5,8 +5,8 @@ cd "$TREE"; git config --global --add safe.directory "$TREE" 2>/dev/null
 export PATH="$HOME/kwork/kernel_manifest/workspace/toolchains/clang/bin:$PATH"
 
 echo '=== A) 那 61 个 .ko 是什么来路 ==='
-find /home/builder /mnt/c/Users/USERNAME/Desktop -name '*.ko' 2>/dev/null | sed 's/^/  /' | head -12
-echo "  总数=$(find /home/builder /mnt/c/Users/USERNAME/Desktop -name '*.ko' 2>/dev/null | wc -l)"
+find /home/builder /mnt/c/Users/xutengfa/Desktop -name '*.ko' 2>/dev/null | sed 's/^/  /' | head -12
+echo "  总数=$(find /home/builder /mnt/c/Users/xutengfa/Desktop -name '*.ko' 2>/dev/null | wc -l)"
 
 echo
 echo '=== B) blk-mq 那个开关在我们配置里是什么值(-a2 的头文件改动按它二选一) ==='
@@ -25,7 +25,7 @@ LS=/home/builder/opt5-baseline/Module.symvers
 python3 - <<'PY'
 import subprocess, os, glob, re
 ko = []
-for r in ['/home/builder','/mnt/c/Users/USERNAME/Desktop']:
+for r in ['/home/builder','/mnt/c/Users/xutengfa/Desktop']:
     for dp,dn,fn in os.walk(r):
         for f in fn:
             if f.endswith('.ko'): ko.append(os.path.join(dp,f))

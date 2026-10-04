@@ -12,7 +12,7 @@ ADB="D:/gaojizhushou/adb.exe"
 Q=/sys/block/sda/queue
 F=/data/local/tmp/iob2.bin
 SZ=128
-LOG=/c/Users/USERNAME/Desktop/gt5pro-kernel/logs/io-bench2.txt
+LOG=/c/Users/xutengfa/Desktop/gt5pro-kernel/logs/io-bench2.txt
 : > "$LOG"
 r() { $ADB shell "su -c '$1'" 2>&1 | tr -d '\r' | tail -1; }
 

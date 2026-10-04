@@ -7,7 +7,7 @@
 #   借鉴   : 见 NOTICE.md 第三节
 # ---------------------------------------------------------------------------
 # 归属: strings 对多文件会打印 "文件名:" 头, 用它把命中归到具体 .ko
-F=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/vendor-ko/vko_strings.txt.gz
+F=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/vendor-ko/vko_strings.txt.gz
 zcat "$F" | awk '
   /^[^ ]+\.ko:$/ { file=$0; sub(/:$/,"",file); next }
   /register_hmbird_sched_ops|task_is_scx|hmbird/ { if (file != "") { print file"\t"$0 } }

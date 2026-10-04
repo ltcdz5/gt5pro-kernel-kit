@@ -8,7 +8,7 @@
 # ---------------------------------------------------------------------------
 # 减脂三项的风险面预判：厂商 .ko 引用名里有没有 __ubsan_* / kfence / init_on_alloc
 P=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
-V=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/vendor-ko-symbols.txt
+V=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/vendor-ko-symbols.txt
 cd "$P" || exit 1
 echo "vendor-ko-symbols.txt 行数=$(wc -l < "$V")"
 echo "--- 厂商引用里的 ubsan 相关 ---"

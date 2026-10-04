@@ -1,8 +1,8 @@
 #!/bin/bash
 # 三个砖版的交集 = 嫌疑人。直接把补丁里这几个文件的 hunk 原文打出来, 对着我们的配置判活/死。
 echo '=== build_opt6a.sh 与 build_opt6a2.sh 的文件清单 ==='
-grep -hE '^A=\(|^A2=\(' /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools/build_opt6a.sh \
-     /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools/build_opt6a2.sh 2>/dev/null | tr -d '\r'
+grep -hE '^A=\(|^A2=\(' /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools/build_opt6a.sh \
+     /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools/build_opt6a2.sh 2>/dev/null | tr -d '\r'
 echo
 echo '=== opt6(全量25文件) 里有没有这几个 —— 交集判定 ==='
 python3 - <<'PY'

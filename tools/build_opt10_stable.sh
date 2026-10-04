@@ -10,7 +10,7 @@
 set -u
 TREE=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
 BASE=/home/builder/opt5-baseline
-P=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/patches
+P=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/patches
 OUT=/home/builder/opt10probe
 cd "$TREE" || exit 1
 export PATH="/home/builder/kwork/kernel_manifest/workspace/toolchains/clang/bin:$PATH"
@@ -75,7 +75,7 @@ strings out/arch/arm64/boot/Image | grep -m1 'Linux version' | cut -c1-70 | sed 
 cp -f out/vmlinux.symvers "$OUT/vmlinux.symvers.opt10"; cp -f out/System.map "$OUT/System.map.opt10"
 cp -f out/arch/arm64/boot/Image "$OUT/Image.opt10"
 md5sum "$OUT/Image.opt10" | sed 's/^/  /'
-python3 /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools/gate_new_exports.py "$OUT/vmlinux.symvers.opt10"
+python3 /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools/gate_new_exports.py "$OUT/vmlinux.symvers.opt10"
 
 echo "=== 6) 布局比对(opt10 vs opt5) ==="
 python3 - <<'PY'

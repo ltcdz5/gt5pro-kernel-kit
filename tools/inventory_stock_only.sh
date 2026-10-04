@@ -12,7 +12,7 @@ C=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
 python3 - <<'PY'
 import gzip, re, io, subprocess, os
 C='/home/builder/kwork/cctv18/repo/local/kernel_workspace/common'
-st = gzip.open('/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/refs/stock_config.gz','rb').read().decode('utf-8','replace')
+st = gzip.open('/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/refs/stock_config.gz','rb').read().decode('utf-8','replace')
 mine = io.open(os.path.join(C,'out/.config'), encoding='utf-8', errors='replace').read()
 def kv(t):
     d={}

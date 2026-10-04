@@ -9,7 +9,7 @@
 # v4 正规 runner：每轮 先重启 → 轮询到 sys.boot_completed=1 → 同步跑一轮 → 确认收尾标记 → 下一轮
 # 顺序：先关(N) 后开(Y)，与上一晚的 A→B 相反，用来消掉顺序 confound
 ADB=/d/gaojizhushou/adb.exe
-OUT=/c/Users/USERNAME/Downloads/v4
+OUT=/c/Users/xutengfa/Downloads/v4
 mkdir -p "$OUT"
 
 wait_boot() {

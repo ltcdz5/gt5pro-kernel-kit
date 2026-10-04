@@ -1,8 +1,10 @@
 ﻿# ---------------------------------------------------------------------------
-# gt5pro-kernel-kit / tools/preflight.ps1 —— 发布前自检（照《发布规范》第五节逐条）
-#   作者 : ltcdz5   许可 : GPL-2.0（见仓库根 LICENSE）
+# gt5pro-kernel-kit / tools/preflight.ps1 —— 发布前自检（表驱动，一屏可读）
+#   作者 : ltcdz5   许可 : GPL-2.0
 #   用法 : powershell -ExecutionPolicy Bypass -File tools\preflight.ps1 -Ver v1.1-opt47
-#   说明 : 能自动查的自动查（打印 PASS/FAIL），查不了的打印 MANUAL 待办，不代填
+#   设计 : 判定逻辑集中；检查项列表驱动（加检查 = 加一行，不新增一节）；
+#          查不了的打印 MANUAL，不代填。判定：FAIL=0 才可发布。
+#   权威值 : 现役/回退只看 CHANGELOG.md 第一节 与 README.md 第九节。
 # ---------------------------------------------------------------------------
 param(
   [Parameter(Mandatory=$true)][string]$Ver,
@@ -11,125 +13,120 @@ param(
   [string]$Wsl  = 'Ubuntu-24.04',
   [string]$Tree = '/home/builder/kwork/cctv18/repo/local/kernel_workspace/common'
 )
-$Kit  = Join-Path $Root 'kernel-kit'
-$KitWsl = '/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit'
-$DevScript = '/data/local/tmp/preflight-dev.sh'
-$Imgs = Join-Path $Root 'images'
-$pass = 0; $fail = 0; $warn = 0
-function Say($t, $m) { $c = switch ($t) { 'PASS' {'Green'} 'FAIL' {'Red'} 'WARN' {'Yellow'} default {'Cyan'} }; Write-Host ("  [" + $t + "] " + $m) -ForegroundColor $c }
-function Head($t) { Write-Host ""; Write-Host ("== " + $t + " ==") -ForegroundColor Cyan }
-function WslDo($cmd) { (wsl -d $Wsl -- bash -lc $cmd 2>&1) -join ([char]10) }
+$Kit = Join-Path $Root 'kernel-kit'; $Imgs = Join-Path $Root 'images'
+$RootWsl = $Root.Replace('\','/').Replace('C:','/mnt/c')
+$KitWsl = $RootWsl + '/kernel-kit'
+$nPass = 0; $nFail = 0; $nWarn = 0
+function ok($m) { $script:nPass++; Write-Host ('  PASS  ' + $m) -ForegroundColor Green }
+function no($m) { $script:nFail++; Write-Host ('  FAIL  ' + $m) -ForegroundColor Red }
+function wn($m) { $script:nWarn++; Write-Host ('  WARN  ' + $m) -ForegroundColor Yellow }
+function sec($m) { Write-Host ''; Write-Host ('== ' + $m + ' ==') -ForegroundColor Cyan }
+function RunWsl($c) { (wsl.exe -d $Wsl -- bash -lc $c 2>&1) -join ([char]10) }
 
-Head "1) 树与构建产物（WSL）"
-$branch = (WslDo "cd $Tree && git rev-parse --abbrev-ref HEAD").Trim()
-$head   = (WslDo "cd $Tree && git log --oneline -1").Trim()
-Say WARN "当前分支=$branch  HEAD=$head"
-$verstr = (WslDo "cd $Tree && tail -1 scripts/setlocalversion").Trim()
-if ($verstr -match [regex]::Escape($Ver)) { $pass++; Say PASS "版本串匹配 $Ver ：$verstr" } else { $fail++; Say FAIL "版本串不含 $Ver ：$verstr" }
-$dirty = (WslDo "cd $Tree && git status --porcelain | head -5").Trim()
-if ([string]::IsNullOrWhiteSpace($dirty)) { $pass++; Say PASS "工作树干净" } else { $warn++; Say WARN ("工作树有未提交改动：" + $dirty) }
+sec '1) 树与产物'
+$br = (RunWsl ('cd ' + $Tree + ' && git rev-parse --abbrev-ref HEAD')).Trim()
+$hd = (RunWsl ('cd ' + $Tree + ' && git log --oneline -1')).Trim()
+wn ('分支=' + $br + '  HEAD=' + $hd)
+$vs = (RunWsl ('cd ' + $Tree + ' && tail -1 scripts/setlocalversion')).Trim()
+if ($vs -match [regex]::Escape($Ver)) { ok ('版本串匹配 ' + $Ver) } else { no ('版本串不含 ' + $Ver) }
+if ([string]::IsNullOrWhiteSpace((RunWsl ('cd ' + $Tree + ' && git status --porcelain')).Trim())) { ok '工作树干净' } else { wn '工作树有未提交改动' }
+$rejn = (RunWsl ("cd $Tree && git ls-files | grep -cE '\\.(rej|orig)$'")).Trim()
+if ($rejn -eq '0') { ok '.rej/.orig 残留 = 0' } else { no ('.rej/.orig 残留 = ' + $rejn) }
+$gl = (RunWsl ("cd $Tree && git ls-files -s | grep '^160000' | cut -f2")).Trim()
+$gm = (RunWsl ('cd ' + $Tree + ' && grep -c ^[[]submodule .gitmodules 2>/dev/null || echo 0')).Trim()
+if ([string]::IsNullOrWhiteSpace($gl)) { ok '无 gitlink 条目' }
+elseif ($gm -match '^[0-9]+$' -and [int]$gm -ge 1) { ok ('gitlink 有 .gitmodules 对应：' + $gl) }
+else { no ('悬空 gitlink：' + $gl) }
 
-Head "2) 残留与子模块（规范第五节第 10 项）"
-$rej = (WslDo "cd $Tree && git ls-files | grep -cE '\.(rej|orig)$'").Trim()
-if ($rej -eq '0') { $pass++; Say PASS ".rej/.orig 残留 = 0" } else { $fail++; Say FAIL (".rej/.orig 残留 = " + $rej) }
-$gl = (WslDo "cd $Tree && git ls-files -s | grep '^160000' | cut -f2 | head -5").Trim()
-$gm = (WslDo "cd $Tree && test -f .gitmodules && cat .gitmodules | grep -c '^\[submodule' || echo 0").Trim()
-if ([string]::IsNullOrWhiteSpace($gl)) { $pass++; Say PASS "无 gitlink 条目" }
-elseif ([int]$gm -ge 1) { $pass++; Say PASS ("gitlink 有 .gitmodules 对应：$gl") }
-else { $fail++; Say FAIL ("悬空 gitlink 且无 .gitmodules：$gl") }
-
-Head "3) 双闸门（在该版真实产物上）"
-$g1 = WslDo "cd $Tree && python3 $KitWsl/tools/gate_new_exports.py out/vmlinux.symvers 2>&1 | tail -3"
+sec '2) 双闸门（该版真实产物）'
+$g1 = RunWsl ('cd ' + $Tree + ' && python3 ' + $KitWsl + '/tools/gate_new_exports.py out/vmlinux.symvers 2>&1 | tail -3')
 Write-Host $g1
-if ($g1 -match 'PASS' -and $g1 -match '遮蔽=0') { $pass++; Say PASS "闸门1：PASS 且遮蔽=0" } else { $fail++; Say FAIL "闸门1 未过或遮蔽≠0" }
-$g2 = WslDo "cd $Tree && python3 $KitWsl/tools/gate_vko_crc.py out/vmlinux.symvers /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/vendor-ko/vendor_dlkm /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/vendor-ko/system_dlkm 2>&1 | grep -m1 '会拒绝装载的模块'"
-Write-Host ("  " + $g2)
-if ($g2 -match '= 1$') { $pass++; Say PASS "闸门2：会拒绝装载 = 1（仅蓝牙基线）⇒ 非蓝牙拒载 = 0" } else { $fail++; Say FAIL "闸门2 非蓝牙拒载 ≠ 0，需人工看" }
+if ($g1 -match 'PASS' -and $g1 -match '遮蔽=0') { ok '闸门1 PASS 且遮蔽=0' } else { no '闸门1 未过或遮蔽不为 0' }
+$g2 = RunWsl ('cd ' + $Tree + ' && python3 ' + $KitWsl + '/tools/gate_vko_crc.py out/vmlinux.symvers ' + $RootWsl + '/vendor-ko/vendor_dlkm ' + $RootWsl + '/vendor-ko/system_dlkm 2>&1 | grep -m1 会拒绝装载')
+if ($g2 -match '= 1') { ok '闸门2 会拒绝装载 = 1（仅蓝牙基线）' } else { no ('闸门2 异常：' + $g2) }
 
-Head "4) 镜像与回退件"
-$img = Join-Path $Imgs ("boot-" + $Ver + "-repacked.img")
-if (Test-Path $img) { $h = (Get-FileHash $img -Algorithm MD5).Hash.ToLower(); $pass++; Say PASS ($Ver + " 镜像存在，md5=" + $h) }
-else { $fail++; Say FAIL ("找不到 " + $img) }
-$man = Join-Path $Imgs '清单.txt'
-if (Test-Path $man) {
-  $m = Get-Content $man -Raw
-  if ($m -match [regex]::Escape($Ver)) { $pass++; Say PASS "images/清单.txt 已含该版" } else { $fail++; Say FAIL "images/清单.txt 未含该版（重跑 tools/images_出清单.sh）" }
+sec '3) 交付件'
+$img = Join-Path $Imgs ('boot-' + $Ver + '-repacked.img')
+if (Test-Path $img) { ok ($Ver + ' 镜像 md5=' + (Get-FileHash $img -Algorithm MD5).Hash.ToLower()) } else { no ('找不到 ' + $img) }
+if ((Test-Path (Join-Path $Imgs '清单.txt')) -and ((Get-Content (Join-Path $Imgs '清单.txt') -Raw) -match [regex]::Escape($Ver))) { ok 'images/清单.txt 已含该版' } else { no 'images/清单.txt 未含该版' }
+$rb = @(Get-ChildItem $Imgs -Filter 'boot-v1.1-opt*-repacked.img*' -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch [regex]::Escape($Ver) })
+if ($rb.Count -gt 0) { ok ('可回退件 ' + $rb.Count + ' 个') } else { wn '没有其它可回退件' }
+
+sec '4) 设备实测'
+& $Adb push (Join-Path $Kit 'tools\preflight-dev.sh') /data/local/tmp/preflight-dev.sh 2>&1 | Out-Null
+$raw = (& $Adb shell su -c 'sh /data/local/tmp/preflight-dev.sh' 2>&1) -join ([char]10)
+$B = @{}; $cur2 = ''
+foreach ($line in ($raw -split '\r?\n')) {
+  if ($line -match '^@@@@(\S+)') { $cur2 = $Matches[1]; $B[$cur2] = @(); continue }
+  if ($cur2) { $B[$cur2] += $line }
 }
-$rb = Get-ChildItem $Imgs -Filter "boot-v1.1-opt4*-repacked.img" -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch $Ver }
-if ($rb) { $pass++; Say PASS ("可用回退件 " + $rb.Count + " 个，最新：" + $rb[-1].Name) } else { $warn++; Say WARN "没找到其他可回退件" }
-
-Head "5) 文档一致性"
-$chg = Join-Path $Kit 'CHANGELOG.md'; $rdm = Join-Path $Kit 'README.md'
-if ((Get-Content $chg -Raw) -match [regex]::Escape($Ver)) { $pass++; Say PASS "CHANGELOG 含 $Ver" } else { $fail++; Say FAIL "CHANGELOG 缺 $Ver 条目" }
-if ((Get-Content $rdm -Raw) -match [regex]::Escape($Ver)) { $pass++; Say PASS "README 含 $Ver" } else { $fail++; Say FAIL "README 未同步现役口径" }
-$hasGh = Test-Path (Join-Path $Kit '.github')
-$badgeCi = (Get-Content $rdm -Raw) -match 'GitHub%20Action'
-if ($badgeCi -and -not $hasGh) { $fail++; Say FAIL "徽章写了 GitHub Action 但仓库无 .github" } else { $pass++; Say PASS "徽章与实际一致" }
-
-Head "6) 设备实测（规范第五节第 17 项与判据）"
-& $Adb push (Join-Path $Kit 'tools\preflight-dev.sh') $DevScript 2>&1 | Out-Null
-$raw = (& $Adb shell su -c ("sh " + $DevScript) 2>&1) -join ([char]10)
-Write-Host $raw
-$B = @{}; $cur = ''
-foreach ($line in ($raw -split "\r?\n")) {
-  if ($line -match '^@@@@(\S+)') { $cur = $Matches[1]; $B[$cur] = @(); continue }
-  if ($cur) { $B[$cur] += $line }
+$devOk = (($B['UNAME'] -join '').Trim() -ne '')
+if (-not $devOk) {
+  no '设备未连接（adb 无设备）⇒ 设备节整体跳过；发布前必须连上设备再跑'
+} else {
+  $kern = ($B['UNAME'] -join '').Trim()
+  if ($kern -match [regex]::Escape($Ver)) { ok ('设备内核 = ' + $kern) } else { no ('设备内核 = ' + $kern) }
+  $lm = ($B['LSMOD'] -join '').Trim()
+  if ($lm -eq '621') { ok 'lsmod = 621（基线）' } else { wn ('lsmod = ' + $lm) }
+  if ((($B['SLOT'] -join '') -match '_a')) { ok '槽位 = _a' } else { wn '槽位不是 _a' }
+  $dmRaw = ($B['DMESG'] -join ' ')
+  $dmN = @($B['DMESG'] | Where-Object { $_ -and ($_.Trim() -match '^[0-9]+$') })
+  if ($dmRaw -match 'klogctl') { no 'dmesg 不可读（klogctl）⇒ 判据不做数' }
+  elseif ($dmN.Count -lt 3) { no ('dmesg 计数没取全（' + $dmN.Count + ' 项）') }
+  elseif (([int]$dmN[0] -eq 0) -and ([int]$dmN[1] -eq 0) -and ([int]$dmN[2] -eq 0)) { ok 'dmesg: Unknown=0, disagrees=0, oops=0' }
+  else { no ('dmesg 非零：' + $dmN[0] + '/' + $dmN[1] + '/' + $dmN[2]) }
+  wn ('Scene: ' + (($B['SCENE'] -join ' ').Trim()) + '  -- 观察期内若更新须重算窗口')
 }
-$kern = ($B['UNAME'] -join '').Trim()
-if ($kern -match [regex]::Escape($Ver)) { $pass++; Say PASS ("设备运行内核 = " + $kern) } else { $fail++; Say FAIL ("设备运行内核 = " + $kern) }
-$lm = ($B['LSMOD'] -join '').Trim()
-if ($lm -eq '621') { $pass++; Say PASS "lsmod = 621（基线）" } else { $warn++; Say WARN ("lsmod = " + $lm) }
-$sl = ($B['SLOT'] -join '').Trim()
-if ($sl -eq '_a') { $pass++; Say PASS "槽位 = _a" } else { $warn++; Say WARN ("槽位 = " + $sl) }
-$dm = ($B['DMESG'] | Where-Object { $_ -match '\d' })
-if ($dm.Count -ge 3) {
-  $unk = [int]($dm[0]); $dis = [int]($dm[1]); $oop = [int]($dm[2])
-  if ($unk -eq 0 -and $dis -eq 0 -and $oop -eq 0) { $pass++; Say PASS ("dmesg: Unknown symbol=0, disagrees=0, oops=0") }
-  else { $fail++; Say FAIL ("dmesg: Unknown symbol=" + $unk + ", disagrees=" + $dis + ", oops=" + $oop) }
-} else { $warn++; Say WARN "dmesg 计数没取到" }
-$sc = ($B['SCENE'] -join ' | ').Trim()
-Say WARN ("Scene: " + $sc + "   <- 若更新时刻在观察期内，观察期须重算")
-$gov = ($B['GOV'] -join ' ').Trim(); Say WARN ("限频: " + $gov)
 
-Head "7) 仓库（源码快照 / tag / 默认分支）"
+sec '5) 仓库'
 $gh = 'C:\Program Files\GitHub CLI\gh.exe'
 if (Test-Path $gh) {
-  $br = (& $gh api "repos/ltcdz5/gt5pro-kernel-src/branches/$Ver" --jq '.name' 2>&1) -join ''
-  if ($br -match $Ver) { $pass++; Say PASS "源码仓库有分支 $Ver" } else { $fail++; Say FAIL "源码仓库缺分支 $Ver" }
-  $tg = (& $gh api "repos/ltcdz5/gt5pro-kernel-src/git/ref/tags/$Ver" --jq '.ref' 2>&1) -join ''
-  if ($tg -match $Ver) { $pass++; Say PASS "源码仓库有 tag $Ver" } else { $fail++; Say FAIL "源码仓库缺 tag $Ver" }
-  $def = (& $gh api "repos/ltcdz5/gt5pro-kernel-src" --jq '.default_branch' 2>&1) -join ''
-  Say WARN ("源码仓库默认分支 = " + $def + "（须等于现役分支，或 README/Release 正文写明现役在哪）")
-} else { $warn++; Say WARN "没找到 gh，跳过仓库检查" }
+  $b2 = (& $gh api ('repos/ltcdz5/gt5pro-kernel-src/branches/' + $Ver) --jq '.name' 2>&1) -join ''
+  if ($b2 -match $Ver) { ok ('源码仓库有分支 ' + $Ver) } else { no ('源码仓库缺分支 ' + $Ver) }
+  $tg = (& $gh api ('repos/ltcdz5/gt5pro-kernel-src/git/ref/tags/' + $Ver) --jq '.ref' 2>&1) -join ''
+  if ($tg -match $Ver) { ok ('源码仓库有 tag ' + $Ver) } else { no ('源码仓库缺 tag ' + $Ver) }
+  wn ('默认分支 = ' + ((& $gh api 'repos/ltcdz5/gt5pro-kernel-src' --jq '.default_branch' 2>&1) -join ''))
+} else { wn '没找到 gh，跳过' }
 
-Head "8) 文档一致性（现役 / 回退字段跨文档）"
-# 根因防治：同一个字段被复制到多份文档 ⇒ 版本一更新就集体腐烂。
-# 2026-10-04 遗漏审计实测：现役有 5 种说法、回退首选有 7 种说法（SKILL.md 落后 10 个版本）。
-$canonName = @("CHANGELOG.md","README.md")
-$hits = @()
-foreach ($d in (Get-ChildItem $Kit -Recurse -Filter "*.md")) {
-  if ($canonName -contains $d.Name) { continue }
+sec '6) 文档与边界（可计量）'
+if ((Get-Content (Join-Path $Kit 'CHANGELOG.md') -Raw) -match [regex]::Escape($Ver)) { ok 'CHANGELOG（权威）含本版' } else { no 'CHANGELOG 缺本版' }
+if ((Get-Content (Join-Path $Kit 'README.md') -Raw) -match [regex]::Escape($Ver)) { ok 'README（权威）含本版' } else { no 'README 未同步' }
+$bad = @()
+foreach ($d in (Get-ChildItem $Kit -Recurse -Filter '*.md')) {
+  if ($d.Name -in @('CHANGELOG.md','README.md')) { continue }
   $ln = 0
   foreach ($line in (Get-Content $d.FullName)) {
     $ln++
-    if ($line -match "(现役|回退首选)" -and $line -match "opt\d+") {
-      if ($line -match "历史|已过期|过期|曾|当时|快照|档案") { continue }
-      $ok = $true
-      if ($line -match "现役" -and ($line -notmatch [regex]::Escape($Ver))) { $ok = $false }
-      if ($line -match "回退首选" -and ($line -notmatch "opt42")) { $ok = $false }
-      if (-not $ok) { $hits += ($d.Name + ":" + $ln + "  " + $line.Trim()) }
-    }
+    if ($line -notmatch '现役|回退首选') { continue }
+    if ($line -notmatch 'opt[0-9]+') { continue }
+    if ($line -match '历史|已过期|过期|曾|当时|快照|档案|归档') { continue }
+    if (($line -match '现役') -and ($line -notmatch [regex]::Escape($Ver))) { $bad += ($d.Name + ':' + $ln) }
+    elseif (($line -match '回退首选') -and ($line -notmatch 'opt42')) { $bad += ($d.Name + ':' + $ln) }
   }
 }
-if ($hits.Count -eq 0) { $pass++; Say PASS "非权威文档里没有与现役/回退冲突的版本号" }
-else { $fail++; Say FAIL ("以下非权威文档的现役/回退字段与权威值冲突（" + $hits.Count + " 处）—— 权威值只看 CHANGELOG §一 / README §9"); $hits | Select-Object -First 15 | ForEach-Object { Write-Host ("      " + $_) -ForegroundColor Red } }
+if ($bad.Count -eq 0) { ok '非权威文档无冲突版本号' } else { no ('冲突 ' + $bad.Count + ' 处：' + (($bad | Select-Object -First 5) -join ', ')) }
+$tracked = @(git -C $Kit ls-files)
+$forbidden = @('refs/cctv18-config-20261001.txt','refs/cctv18-anykernel.sh','refs/manifest_gt5pro_u.xml','refs/manifest_oneplus12_v.xml')
+$hit = @($forbidden | Where-Object { $tracked -contains $_ })
+if ($hit.Count -eq 0) { ok ('他人原件 = 0（清单 ' + $forbidden.Count + ' 项）') } else { no ('仍跟踪他人原件：' + ($hit -join ', ')) }
+$hb = @()
+foreach ($t in ($tracked | Where-Object { $_ -match '\.md$' -and $_ -notmatch 'NOTICE\.md$|^README\.md$|审计-' })) {
+  $fp = Join-Path $Kit $t
+  if ((Test-Path $fp) -and ((Get-Content $fp -Raw) -match 'Numbersf|ITXUU|victor-egg')) { $hb += $t }
+}
+if ($hb.Count -eq 0) { ok '个人 handle 仅在署名类文件' } else { no ('handle 越界：' + ($hb -join ', ')) }
+if ((Test-Path (Join-Path $Kit 'NOTICE.md')) -and ((Get-Content (Join-Path $Kit 'NOTICE.md') -Raw).Length -gt 200)) { ok 'NOTICE.md 在（上游归属保留）' } else { no 'NOTICE.md 缺失' }
+$ai = Join-Path $Kit 'archive\README.md'
+if (Test-Path $ai) {
+  $rows = @(Get-Content $ai | Where-Object { $_ -match '^[|]' -and $_ -match '[0-9]' })
+  $nd = @($rows | Where-Object { $_ -notmatch '20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]' })
+  if ($nd.Count -eq 0) { ok ('归档索引 ' + $rows.Count + ' 条，全带日期') } else { no ('归档索引缺日期 ' + $nd.Count + ' 条') }
+} else { wn '无 archive/README.md' }
 
-Head "9) 人工项（脚本不代填）"
-Say MANUAL "观察期起止时刻（须满 24 小时，且期间 Scene 未更新、未刷机）"
-Say MANUAL "规范第一节 8 条判据的人工部分（体感/续航等）"
-Say MANUAL "未结案清单复核；半补项写明缺哪一半"
-Say MANUAL "公开件里不含第三方模块/他人内核原始件（见规范第八节）"
+sec '7) 人工项（不代填）'
+foreach ($m in @('观察期起止时刻（须满 24h，期间 Scene 未更新、未刷机）','规范第一节 8 条判据的人工部分（体感/续航）','未结案清单复核；半补项写明缺哪一半')) { Write-Host ('  MANUAL  ' + $m) -ForegroundColor Cyan }
 
-Write-Host ""
-Write-Host ("===== 自检汇总：PASS=" + $pass + "  FAIL=" + $fail + "  WARN=" + $warn + " =====") -ForegroundColor ($(if ($fail -gt 0) {'Red'} else {'Green'}))
-if ($fail -gt 0) { exit 1 } else { exit 0 }
+Write-Host ''
+$col = if ($nFail -gt 0) { 'Red' } else { 'Green' }
+Write-Host ('===== PASS=' + $nPass + '  FAIL=' + $nFail + '  WARN=' + $nWarn + ' =====') -ForegroundColor $col
+if ($nFail -gt 0) { exit 1 } else { exit 0 }

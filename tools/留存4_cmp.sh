@@ -7,7 +7,7 @@
 #   借鉴   : 见 NOTICE.md 第三节
 # ---------------------------------------------------------------------------
 # 比对 v4 两轮读数（纯本地，不碰设备）。用法: bash 留存4_cmp.sh
-D=/c/Users/USERNAME/Downloads/v4
+D=/c/Users/xutengfa/Downloads/v4
 for t in B1_off A1_on; do
   [ -s "$D/$t.txt" ] || { echo "缺 $t.txt"; exit 1; }
 done

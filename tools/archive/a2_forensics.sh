@@ -1,5 +1,5 @@
 #!/bin/bash
-WIN=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/不能刷-裸内核
+WIN=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/不能刷-裸内核
 BASE=/home/builder/opt5-baseline
 echo '=== 1) 每个裸 Image 的版本串(产物身份证, 证明 -a2 就是那 4 个文件那轮) ==='
 for f in "$WIN"/*.img; do

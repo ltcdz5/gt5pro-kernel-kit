@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Continue'
 $ADB = 'D:\gaojizhushou\adb.exe'
-$SMP = 'C:\Users\USERNAME\AppData\Local\Temp\perf\ruler_sample.sh'
-$LOCAL = 'C:\Users\USERNAME\AppData\Local\Temp\boot_ruler.tsv'
+$SMP = 'C:\Users\xutengfa\AppData\Local\Temp\perf\ruler_sample.sh'
+$LOCAL = 'C:\Users\xutengfa\AppData\Local\Temp\boot_ruler.tsv'
 $rounds = if ($args.Count -ge 1) { [int]$args[0] } else { 10 }
 $keepResults = $true
 

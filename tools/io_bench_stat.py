@@ -7,7 +7,7 @@
 #            UY-Scuti / libbpf-bpftool / sched-ext / LunarKernel LSE 等）
 # ---------------------------------------------------------------------------
 import re, statistics as st
-P='/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/logs/io-sched-bench.txt'
+P='/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/logs/io-sched-bench.txt'
 rows=[]
 for L in open(P,encoding='utf-8',errors='replace'):
     m=re.match(r'\s*(\d)\s+(\S+)\s+(\S+)\s+(写|读)=(\d+)ms',L)

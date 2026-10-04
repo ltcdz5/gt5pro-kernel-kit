@@ -45,5 +45,5 @@ echo "=== F) System.map 里上游新增的 hook 符号确实在 ==="
 for s in android_vh_resched_curr_lazy android_vh_lock_task_fork android_vh_lock_task_exit; do
   printf "  %-34s %s\n" "$s" "$(grep -c "$s" out/System.map)"
 done
-cp -f out/arch/arm64/boot/Image /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/boot-opt6-ltcdz5-up0914-raw.img
+cp -f out/arch/arm64/boot/Image /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/boot-opt6-ltcdz5-up0914-raw.img
 md5sum out/arch/arm64/boot/Image out/Module.symvers

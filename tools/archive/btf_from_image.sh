@@ -2,7 +2,7 @@
 # 验一件事: 裸 Image 里能不能直接抠出 BTF, 以及 pahole 认不认裸 BTF 文件
 TREE=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
 IMG=$TREE/out/arch/arm64/boot/Image
-WIN=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/不能刷-裸内核
+WIN=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/不能刷-裸内核
 export PATH="$HOME/kwork/kernel_manifest/workspace/toolchains/clang/bin:$PATH"
 
 echo "=== 0) 工具在不在 ==="

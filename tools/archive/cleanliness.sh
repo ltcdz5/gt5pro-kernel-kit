@@ -14,7 +14,7 @@ git status --porcelain | grep '^??' | wc -l | sed 's/^/   未跟踪文件数: /'
 git status --porcelain | grep '^??' | head -12 | sed 's/^/     /'
 echo
 echo "=== 4) kit 里那个 69_hide_stuff.patch 到底有没有进树 ==="
-P=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/patches/69_hide_stuff.patch
+P=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/patches/69_hide_stuff.patch
 head -6 "$P" 2>/dev/null | sed 's/^/   /'
 echo "   补丁涉及文件:"; grep -E '^(diff --git|\+\+\+ )' "$P" 2>/dev/null | sed 's/^/     /' | head -8
 for f in $(grep -oE '^\+\+\+ b/.*' "$P" 2>/dev/null | sed 's|^+++ b/||' | head -6); do

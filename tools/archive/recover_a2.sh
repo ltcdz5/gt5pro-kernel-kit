@@ -1,5 +1,5 @@
 #!/bin/bash
-T=/mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools
+T=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools
 echo '=== 这些构建脚本在不在 ==='
 ls -1 "$T" | grep -iE 'opt6|opt7|control' | sed 's/^/  /'
 echo

@@ -21,7 +21,7 @@
 import struct, os, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_STOCK = os.path.join(os.path.dirname(HERE), "images", "boot_a.img")
+DEFAULT_STOCK = os.path.join(os.path.dirname(os.path.dirname(HERE)), "images", "boot_a.img")  # opt47 修正：images/ 在 kernel-kit 的上一级
 if len(sys.argv) < 3:
     print("用法: %s <裸Image> <输出img> [原厂boot_a.img]" % os.path.basename(sys.argv[0]))
     sys.exit(2)

@@ -13,7 +13,7 @@
 ADB=/d/gaojizhushou/adb.exe
 TAG="$1"
 STATE="$2"
-OUT=/c/Users/USERNAME/Downloads/v5
+OUT=/c/Users/xutengfa/Downloads/v5
 DEV=/data/local/tmp/留存5.$TAG.txt
 mkdir -p "$OUT"
 

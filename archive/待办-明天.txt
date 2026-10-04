@@ -1,0 +1,84 @@
+# ⛔ 已过期归档（2026-10-04）—— 2026-09-29 的草稿待办，已全部过期
+
+> 过期原因：文内写"现役=opt2b"、引用的镜像已不存在；其待办已由后续版本完成或作废。
+> 归档位置：kernel-kit/archive/（原项目根目录）
+
+---
+
+================================================================
+GT5 Pro 自编内核 · 明天继续（2026-09-29 凌晨留）
+================================================================
+
+【当前状态】
+  现役内核: 6.1.141-android14-11-o-ltcdz5  (opt2b)
+            = 自编 OKI 树 + BBR/fq 烙进内核默认 + LKM root
+  手机上:   已刷、已启动、网络默认值已回读确认 (bbr / fq)
+  桌面:     C:\Users\xutengfa\Desktop\gt5pro-kernel\
+  私有仓:   github.com/ltcdz5/gt5pro-kernel-kit   (配方包)
+            github.com/ltcdz5/gt5pro-kernel-src   (源码树快照)
+
+----------------------------------------------------------------
+【✅ 已破案 + 已修复 · 2026-09-29 上午】
+  现象: 开机 boot_complete = 88 秒(正常应 20 秒内)
+  根因: 内核请求 WiFi 法规库 regulatory.db → 设备上只有厂商格式 regdb.bin(不能用)
+        → 找不到 ⇒ 走用户态回退 ⇒ 等满 60 秒超时 ⇒ ueventd 被堵 ⇒ zygote 拖到 72 秒
+        证据: dmesg 里 "ueventd: loading .../regulatory.db took 69287ms"(占满 init→zygote 的 70 秒)
+  修法 A(终极): opt3 内核 = 把 regulatory.db + .p7s **内嵌进内核**
+        → 成品: images\boot-opt3-ltcdz5-repacked.img (md5 cdd0cb1a30a81e1bd4a4746c140442b5)
+        → 刷法: fastboot flash boot_a ...\images\boot-opt3-ltcdz5-repacked.img
+        → 验效: logcat -b events -d | grep boot_progress  ⇒ start 应从 71658 变 ~4000
+  修法 B(手机端立刻见效, 不用刷机): 把 regulatory.db + regulatory.db.p7s 放进 /mnt/vendor/persist/
+        来源: 阿里云 wireless-regdb deb (refs/regdb/ 里也有备份)
+  注: 两条互不冲突(内嵌优先级更高)；这个 bug 与 BBR/lz4/BBG 无关
+
+----------------------------------------------------------------
+【观察记录 · 2026-09-29 凌晨】
+  ✅ 体感正反馈：刷抖音比之前流畅（机制上说得通：fq 队列治延迟抖动 + BBR 抗丢包
+     + lz4 加速系统读取）⇒ **优先保 fq/BBR，别在减功能时误伤它俩**
+  ⇒ 推论：fq/BBR 不参与开机流程 ⇒ "开机慢 15s" 的锅优先怀疑 **BBG / 模块加载重试 / AVB 等待**
+
+----------------------------------------------------------------
+【待办 1 · 开机慢了约 15 秒】（优先，最新发现）
+  现象: 重启后开机比之前慢，感觉多 15 秒左右
+  判读: "固定多十几秒" = 某处超时重试；内核代码差异一般只加 1~3 秒
+  嫌疑: ① AVB/校验固定等待（我们镜像哈希与原厂 vbmeta 不符，刷机必然）
+        ② 某厂商模块没加载起来 → init 重试
+        ③ BBG 写保护 → 系统重试
+
+  动作 A（最快，30 秒）: 重启一次
+     - 还是固定 ~15 秒 ⇒ 是固定超时（上面三个之一）
+     - 变快了          ⇒ 一次性系统补作业，不用管
+
+  动作 B（手机插上、USB调试开着）: 跑这三条，把结果发我
+     adb shell "su -c 'logcat -b events -d | grep boot_progress'"        ← 里程碑
+     adb shell "su -c 'dmesg | grep -iE \"timed out|probe|deferred|fail\"'"  ← 谁在超时
+     adb shell "su -c 'lsmod | wc -l'"                                   ← 应为 621
+     注: boot_progress_start 那个数 ≈ 内核启动耗时；数小 = 内核没慢
+
+  动作 C（若确认持续慢，二分定位; 每刷一次 2 分钟）
+     ① 刷 images\boot-cctv-6.1.141-repacked.img   (没 BBR/fq，但仍含 BBG+lz4)
+     ② 刷 images\boot_a.img                        (纯原厂)
+     ③ 报结果 → 我 3 分钟出一版"减掉那一项"
+
+----------------------------------------------------------------
+【待办 2 · BBR 耗电观察 48 小时】
+  记法: 睡前/醒后各记一次电量% → 得"关屏8小时掉电%"
+  若明显偏高: 刷 images\boot-cctv-6.1.141-repacked.img 对照（无 BBR 默认）
+  或让我出"BBR 可用但不默认"版（3 分钟）
+
+----------------------------------------------------------------
+【待办 3 · zram 想切 zstd（可选）】
+  Scene 里把 zram 算法从 zstdn_o 改成 zstd（= 内核自带 1.5.7）
+  ⚠️ 空闲时切（会清空 zram）; 判定看待机耗电 + 后台留存
+  想省电方向: 换 lz4（内核那份带 ARMv8 汇编加速）
+
+----------------------------------------------------------------
+【刷机命令（路径已改）】
+  进 fastboot: D:\gaojizhushou\adb.exe reboot bootloader
+  刷入:       D:\gaojizhushou\fastboot.exe flash boot_a C:\Users\xutengfa\Desktop\gt5pro-kernel\images\<文件名>
+  回原厂:     同上，文件名换 boot_a.img
+
+【重编内核（3 分钟）】
+  见 kernel-kit\README.md（第 3~4 节：追加 my_opts.conf → 跑 builder_6.1.141.sh）
+  升级版本见 README 第 7 节（换 OnePlusOSS 官方分支，KMI 家族内可升）
+================================================================

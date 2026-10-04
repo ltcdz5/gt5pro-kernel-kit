@@ -52,5 +52,5 @@ a=open("$BASE/Image.opt5",'rb').read(); b=open("$IMG",'rb').read()
 n=min(len(a),len(b)); diff=sum(1 for i in range(0,n,1) if a[i]!=b[i])
 print("   大小 %s vs %s ; 不同的字节数 %d (%.4f%%)" % (len(a), len(b), diff, 100.0*diff/n))
 PY
-cp -f "$IMG" /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/不能刷-裸内核/boot-opt7-clean.raw.img
+cp -f "$IMG" /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/不能刷-裸内核/boot-opt7-clean.raw.img
 md5sum "$IMG"

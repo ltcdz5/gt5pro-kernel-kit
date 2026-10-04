@@ -62,7 +62,7 @@ cp -f out/System.map "$OUT/System.map.opt10"
 cp -f out/arch/arm64/boot/Image "$OUT/Image.opt10"
 md5sum "$OUT/Image.opt10" | sed 's/^/  /'
 echo "  test_task_ux 镜像内=$(strings -a $OUT/Image.opt10 | grep -c test_task_ux)  opt5基线=$(strings -a $BASE/Image.opt5 | grep -c test_task_ux)"
-python3 /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools/gate_new_exports.py "$OUT/vmlinux.symvers.opt10"
+python3 /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools/gate_new_exports.py "$OUT/vmlinux.symvers.opt10"
 
 echo '=== 7) 全类型布局比对 opt10 vs opt5 ==='
 python3 - <<'PY'
@@ -80,6 +80,6 @@ echo "  全类型差异行数=$(diff /home/builder/abi/full/opt5.txt /home/build
 diff /home/builder/abi/full/opt5.txt /home/builder/abi/full/opt10.txt | grep -E '^[<>]' | head -20 | sed 's/^/    /'
 
 echo '=== 8) repack 到未刷文件 ==='
-cd /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/kernel-kit/tools
-python3 repack_any.py "$OUT/Image.opt10" /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/试验-opt10-未真机验证.img 2>&1 | tail -5
+cd /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/kernel-kit/tools
+python3 repack_any.py "$OUT/Image.opt10" /mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/试验-opt10-未真机验证.img 2>&1 | tail -5
 echo "=== 结束 $(date) ==="

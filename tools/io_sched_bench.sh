@@ -10,7 +10,7 @@
 # 零刷机、全部 sysfs 运行时值、结束还原原样
 ADB="D:/gaojizhushou/adb.exe"
 F=/data/local/tmp/iobench.bin
-LOG=/c/Users/USERNAME/Desktop/gt5pro-kernel/logs/io-sched-bench.txt
+LOG=/c/Users/xutengfa/Desktop/gt5pro-kernel/logs/io-sched-bench.txt
 : > "$LOG"
 run() { $ADB shell "su -c '$1'" 2>&1 | tr -d '\r'; }
 

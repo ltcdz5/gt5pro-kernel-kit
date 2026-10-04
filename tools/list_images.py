@@ -8,7 +8,7 @@
 #            UY-Scuti / libbpf-bpftool / sched-ext / LunarKernel LSE 等）
 # ---------------------------------------------------------------------------
 import os, re, hashlib, sys
-D = sys.argv[1] if len(sys.argv) > 1 else r"C:\Users\USERNAME\Desktop\gt5pro-kernel\images"
+D = sys.argv[1] if len(sys.argv) > 1 else r"C:\Users\xutengfa\Desktop\gt5pro-kernel\images"
 for n in sorted(os.listdir(D)):
     if not n.endswith('.img'):
         continue
