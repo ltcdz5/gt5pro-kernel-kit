@@ -81,13 +81,17 @@
 
 > ⚠️ 本轮同时确认：**挂死在 BPF 加载阶段，与 scx_ops_enable 无关** —— T0 那层永远到不了，所以「逐段短路二分」（路线 A）在这种情形下无效；正确做法是在 **BPF struct_ops 类型表**上拦截。
 
-## 二、全量版本明细（opt5 → v1.1-opt42）
+## 二、全量版本明细（opt5 → v1.1-opt46）
 
 > 改动摘要取 **git commit 标题原文**（不改写）；日期为 tag/提交日期。
 
 | 版本 | git ref | 提交 | 日期 | 改动摘要 | 状态 |
 |---|---|---|---|---|---|
-| v1.1-opt42 | tag v1.1-opt42 | 77aa56a8 | 10-03 | USB gadget bRequestType 位域误判 + LZ4 armv8 Permtable 越界读 | ★现役 |
+| v1.1-opt46 | 分支 opt46 | 46457461 | 10-04 | BBRv3 全套移植（上游作者 20 补丁，2228 行换掉 tcp_bbr.c） | ⛔ 闸门2 判死 367/493（见第三节 §7） |
+| v1.1-opt45 | 分支 opt45（交付清理 846c9c1b） | dfea5e50 → 846c9c1b | 10-04 | 摘掉 sched_ext 的 BPF struct_ops 类型（+ `scx_ops_enable` 早退作第二层）⇒ sched_ext 加载干净报错、不再硬挂死整机 | 🎯 设备现役·交付候选（观察期至 10-05 17:20） |
+| v1.1-opt44 | tag v1.1-opt44 | 66b2bf8c | 10-04 | 新增可写 governor 入口 gov_override（为已放弃的 LSE 解锁第三方 governor） | ⛔ 未交付（见第三节 §4） |
+| v1.1-opt43 | tag v1.1-opt43 | 5ed2774c | 10-04 | scx 部分接管实验：去掉 enable 的无条件 switch_all | ⛔ 硬挂死，已否证（见第三节 §3） |
+| v1.1-opt42 | tag v1.1-opt42 | 77aa56a8 | 10-03 | USB gadget bRequestType 位域误判 + LZ4 armv8 Permtable 越界读 | ★已发布（回退首选） |
 | v1.1-opt41 | tag v1.1-opt41 | e5f8f1aa | 10-03 | 修 AF_PACKET 时间戳 cmsg 越界读（上游 1ee90b77b727）；实际修法 = 原型 + 去 static + 判定加析构校验 三件套 | ✅ |
 | v1.1-opt40 | tag v1.1-opt40 | a9d0d61f | 10-03 | CVE-2026-31446 —— ext4 sysfs UAF（加 s_error_notify_mutex）；首次验证「改结构体也能零 CRC」 | ✅ |
 | v1.0-opt39 | tag v1.0-opt39 | c6f3611b | 10-03 | ext4/jbd2 三项（含 CVE-2025-38337）：事务配额保守化、ext4_get_maxbytes 上界校验、abort 判定次序 | ✅ |

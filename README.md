@@ -28,6 +28,7 @@
 | 打包工具 | `osm0sis/AnyKernel3`、社区镜像工具（如 `UY-Scuti`） | 各自许可 | *借鉴*思路与布局 |
 | BPF 工具链 | 官方 `libbpf/bpftool`（LGPL-2.1 / BSD-2-Clause） | 双许可 | scx 实验用 |
 | 调度扩展参考 | **LunarKernel（LSE）** | 见上游 | *借鉴*其 slim_walt 模块化路线 |
+| 基带保护（BBG） | **`vc-teahouse/Baseband-guard`** | GPL-2.0 | 以 **git 子模块**引入（`CONFIG_BBG`，`security/baseband-guard/`），阻断对关键分区/设备节点的未授权写入；提交 `a5b57f15d6b5` |
 
 > 逐项完整标注见 **[`NOTICE.md`](NOTICE.md)**。本仓库 `tools/` 下每个脚本头部也标注了作者/许可/借鉴汇总。
 > ⚠️ **未包含任何厂商闭源 blob**；对厂商源码的全部修改均以 GPL-2.0 公开。
