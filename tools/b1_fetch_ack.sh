@@ -10,7 +10,8 @@
 #   ① 源错了：v1 走 gh-proxy + aosp-mirror/kernel_common，而该镜像【已冻结在 2025-11-19】
 #      => 收获窗口永远停在那儿，"没有新东西" 是假象。v2 改用权威源 android.googlesource.com。
 #   ② fail-open：v1 用 | tail -4 把 git 的报错吞掉，取不到也照常往下走。v2 是 fail-closed：
-#      非零退出 / 任意一行 stderr / 空结果 / tip 日期早于已知收获日 => 立刻非零退出（rc=3）。
+#      非零退出 / **error 级 stderr**（error|fatal|could not|denied|unable）/ 空结果 / tip 日期早于已知收获日
+#      => 立刻非零退出（rc=3）。注：git 的进度与 warning 也走 stderr，故只对 error 级致命（warning 照打，便于发现残包等问题）。
 #   ③ 粒度粗：v1 只到文件级。v2 加 hunk 级（文件 + 行区间 + 增删计数）与"纯 .c 修复"筛选。
 #
 # 用法：
@@ -41,6 +42,16 @@ N=$ARG3
 
 fail() { echo "❌ [fail-closed] $*" >&2; exit 3; }
 
+# 只把 error 级 stderr 当致命；warning/进度照打不误
+errcheck() {
+  local tag=$1 file=$2 txt bad
+  txt=$(cat "$file" 2>/dev/null || true)
+  [ -n "$txt" ] || return 0
+  printf '%s\n' "$txt" | sed "s/^/  [stderr:$tag] /" >&2
+  bad=$(printf '%s\n' "$txt" | grep -icE 'error|fatal|could not|denied|unable|refus' || true)
+  [ "$bad" = 0 ] || fail "$tag 出现 $bad 行 error 级 stderr（见上）"
+}
+
 [ -d "$REPO" ] || fail "找不到内核树 $REPO"
 cd "$REPO" || fail "进不去内核树"
 git config --global --add safe.directory "$PWD" 2>/dev/null || true
@@ -50,7 +61,7 @@ tip() { git rev-parse --verify -q "$REMOTE_REF" 2>/dev/null; }
 freshness() {
   local j res sha d verdict
   j=$(curl -s --max-time 60 "$ACK/+log/$BRANCH?format=JSON&n=1" 2>/tmp/ack_err) || fail "curl 取 gitiles 失败"
-  [ -z "$(cat /tmp/ack_err)" ] || fail "curl 有 stderr: $(cat /tmp/ack_err)"
+  errcheck curl /tmp/ack_err
   [ -n "$j" ] || fail "gitiles 返回空（源不可用、分支名错、或被限流）"
   res=$(printf '%s' "$j" | sed "s/^)]}'//" | python3 -c "import json,sys,email.utils,time; c=json.load(sys.stdin)['log'][0]; t=c['committer']['time']; e=email.utils.parsedate_to_datetime(t).timestamp(); last=time.mktime(time.strptime(sys.argv[1],'%Y-%m-%d')); print(c['commit'], t, 'OK' if e>=last else 'STALE', sep=chr(9))" "$LAST_SEEN_DATE" 2>/dev/null) || fail "gitiles JSON 解析失败（源返回的不是预期 JSON）"
   sha=$(printf '%s' "$res" | cut -f1)
@@ -79,7 +90,7 @@ case "$CMD" in
     git fetch --filter=blob:none --depth=2000 "$ACK" "$BRANCH:$REMOTE_REF" >/tmp/ack_out 2>/tmp/ack_err
     rc=$?
     [ "$rc" = 0 ] || fail "fetch 分支失败 rc=$rc: $(cat /tmp/ack_err)"
-    [ -z "$(cat /tmp/ack_err)" ] || fail "fetch 分支有 stderr（一行都不放过）: $(cat /tmp/ack_err)"
+    errcheck fetch /tmp/ack_err
     s=$(tip)
     [ -n "$s" ] || fail "fetch 后仍取不到 $REMOTE_REF"
     git show -s --format='  ✅ tip: %h %cs %s' "$s"
@@ -88,7 +99,7 @@ case "$CMD" in
       git fetch --filter=blob:none --depth=2000 "$ACK" "$ACKBASE_TAG:$ACKBASE_LOCAL" >/tmp/ack_out2 2>/tmp/ack_err2
       rc2=$?
       [ "$rc2" = 0 ] || fail "fetch 基线失败 rc=$rc2: $(cat /tmp/ack_err2)"
-      [ -z "$(cat /tmp/ack_err2)" ] || fail "fetch 基线有 stderr: $(cat /tmp/ack_err2)"
+      errcheck fetch-base /tmp/ack_err2
       BASE=$ACKBASE_LOCAL
     fi
     git rev-parse --verify -q "$BASE" >/dev/null || fail "基线不可解析: $BASE"
