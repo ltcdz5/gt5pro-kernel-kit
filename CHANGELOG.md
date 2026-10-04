@@ -72,7 +72,7 @@
 | opt15-p27 | tag opt15-p27 | 3448adab | 10-02 | ACK round4 头文件修复批 —— 11 个不碰中枢结构体的提交 | 🖼 |
 | opt15-p25 | tag opt15-p25 | c2a84f3a | 10-02 | ACK round4 —— 老窗口（2026-05-20..09-29）的自洽子集 | 🖼 |
 | opt15-p21 | tag opt15-p21 | e17ad236 | 10-02 | 启用 SSG 电梯（Samsung Generic I/O scheduler）※后评估属「贴原厂」而非调优 | 🖼 |
-| opt15-p20 | tag opt15-p20 | d8e827ea | 10-02 | 补上 945be0af8244 posix-cpu-timers UAF 修复的生产者半边 | 🖼 |
+| opt15-p20 | tag opt15-p20 | d8e827ea | 10-02 | 补齐 945be0af8244 posix-cpu-timers UAF 修复的**缺失那半**（生产者 `smp_store_release(&tsk->sighand, NULL)`）⇒ 三处配套齐全，**该 UAF 修复完整** | 🖼 |
 | opt15-p19 | tag opt15-p19 | 14f326fc | 10-02 | ACK round3 —— 从 android14-6.1 收 104 个缺失文件块（26 个提交的真修复） | 🖼 |
 | opt15-p16 | tag opt15-p16 | a54a45ae | 10-02 | 修掉 P13 引入的 /proc/loadavg 爆表 —— 退回 loadavg.c 的 (int) cast | 🖼 |
 | opt15-p13 | tag opt15-p13 | d4fe9dd3 | 10-02 | 补上 stable 6.1.142..188 中本机参与编译却被跳过的 6 条纯 .c | 🖼 |
@@ -262,6 +262,13 @@ boot_progress_start=12.87s），并与 opt9 一起**验证了这条裁剪规则*
   他人调研报告的**原文**（按 §八"不搬运原文"）；修掉 10 处引用。随后同样删库重建、历史重置为单提交。
   **验证**：远端 clone 全历史 grep 零命中；旧提交 SHA 返回 No commit found。
   被清理资料统一存于本地 archive/非本项目归档/（三批合计 25 个文件）。
+- **2026-10-04 · 台账勘误（重要）**：`945be0af8244` posix-cpu-timers UAF 修复曾被标为「未补全、值得补」。
+  实查三处配套**全在 opt42 树里**（`exit.c:214` 生产者 `smp_store_release` / `signal.c:1415` 消费者
+  `smp_acquire__after_ctrl_dep` / `posix-cpu-timers.c` 锁定助手），该修复**早在 opt15-P20 即已完整**。
+  误判源头是 P20 标题「生产者半边」的歧义措辞 —— 本意是「厂商漏掉的那半正是生产者」，
+  却被读成「只补了一半」。已把未结案清单该项标 ✅ 已解决，并把「结论性措辞必须自解释」
+  写进《发布规范》§七 第 6 条。**验证方式**：本地 `ack3_gap/0060~0062__945be0af8244__*.patch`
+  与树内三处逐行对得上。
 
 ---
 
