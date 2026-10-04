@@ -4,12 +4,12 @@
 [![SoC](https://img.shields.io/badge/SoC-Snapdragon%208%20Gen%203%20(SM8650)-0a7bbb.svg)]()
 [![Kernel](https://img.shields.io/badge/Kernel-6.1.141%20OKI-f6a500.svg)]()
 [![Status](https://img.shields.io/badge/Status-Open%20Source%20%C2%B7%20Public-3ddc84.svg)]()
-[![CI](https://img.shields.io/badge/%E6%9E%84%E5%BB%BA-%E6%9C%AC%E5%9C%B0%20%2B%20GitHub%20Action-2ea44f.svg)]()
+[![Build](https://img.shields.io/badge/%E6%9E%84%E5%BB%BA-%E6%9C%AC%E5%9C%B0%EF%BC%88%E6%97%A0%20CI%EF%BC%89-2ea44f.svg)]()
 
 # GT5 Pro 自编内核 · 核件包（kernel-kit）
 
 > **开源状态**：本仓库以 **GPL-2.0** 开源（见 [`LICENSE`](LICENSE)），全部内容公开可复现。
-> **配套内核源码仓库**：[`ltcdz5/gt5pro-kernel-src`](https://github.com/ltcdz5/gt5pro-kernel-src) —— 现役源码见分支 **`opt42`**
+> **配套内核源码仓库**：[`ltcdz5/gt5pro-kernel-src`](https://github.com/ltcdz5/gt5pro-kernel-src) —— 已发布源码 **`opt42`**；交付候选 **`opt45`**（观察期至 2026-10-05 17:20）
 > **版本与发布**：逐版本改动史见 [`CHANGELOG.md`](CHANGELOG.md)；发布节奏（**观察期满一天 + changelog 必须覆盖中间所有版本**）见 [`发布规范-20261004.md`](发布规范-20261004.md)；**正式发布见源码仓库的 [Releases](https://github.com/ltcdz5/gt5pro-kernel-src/releases)**；**逐版真实 diff 见源码仓库 [history 分支的 build-history/](https://github.com/ltcdz5/gt5pro-kernel-src/tree/history/build-history)**
 
 ## ⚠️ 开源合规与来源标注（复刻 / 借鉴 / 引用）
@@ -141,13 +141,19 @@ fastboot reboot
 - 源码树：另存（1.7G，`git bundle` 见同目录）
 
 ## 9. 成品与回退（当前状态）
-- **现役／终点＝`v1.1-opt42`**：`images/boot-v1.1-opt42-repacked.img`，md5 `4bd362b0a17513474de217ea9beb8ae3`
+- **设备现役（已刷）＝`v1.1-opt45`（探针 2 构建）**：`images/boot-v1.1-opt45-p2-repacked.img`，md5 `4edea16d3046577b83dd3c8cf82be154`
+  （裸核 md5 `60d964f748c5f1c56750833c6eb2b6ad`；banner `#72-ack304-v1.1-opt45`）
+  它只做**一件纯收益的事**：把 `sched_ext_ops` 从 BPF struct_ops 类型表里摘掉 ⇒ **任何 sched_ext 的 BPF 调度器加载都会干净报错，而不是硬挂死整机**
+  （此前实测：`bpftool prog loadall` 仅加载就挂 ⇒ uptime 归零 + 看门狗复位）。同版还带一句 `scx_ops_enable()` 早退（实测永远到不了，作第二层）。
+  ⚠️ 观察期起点 **2026-10-04 17:20** ⇒ **10-05 17:20 期满后才作为交付版发布**；此前它只是「已上机的交付候选」。
+- **已发布版＝`v1.1-opt42`**：`images/boot-v1.1-opt42-repacked.img`，md5 `4bd362b0a17513474de217ea9beb8ae3`
   （裸核 `perf42/Image.opt42` md5 `2e20e2c1b7dea60cdfee3d58a730a79f`；横幅 `6.1.141-android14-11-o-ltcdz5-v1.1-opt42`）
   含 opt38~opt42 的全部安全修复：ipset dump 竞态、nf_conntrack_expect 空指针解引用、TCP 非对齐读、
   CVE-2026-31446（ext4 sysfs UAF）、CVE-2025-38337（jbd2）、AF_PACKET 时间戳 cmsg 越界、
   USB gadget `bRequestType` 位域误判、LZ4 armv8 Permtable 越界读。
-- **回退首选**：`images/boot-v1.1-opt41-repacked.img`，md5 `8e449caedeb1791923393c9c4eb2245f`
-- ⚠️ **别刷 `out/` 里的产物**：那是 `v1.1-opt44`（`gov_override`），对应**已放弃**的 LSE，**未交付**。
+- **回退首选**：`images/boot-v1.1-opt42-repacked.img`（md5 `4bd362b0a17513474de217ea9beb8ae3`，已发布版）；次选 `images/boot-v1.1-opt41-repacked.img`（md5 `8e449caedeb1791923393c9c4eb2245f`）
+- ⚠️ **以 `images/` 下的成品为准，别直接刷 `out/`**：`out/` 现为 `v1.1-opt45` 探针 2（与已刷入件同源、可复现）；
+  而 **`opt44`（`gov_override`，未采用）与 `opt46`（BBRv3，闸门2 报 367/493 模块会拒载）都绝对不可刷**。
 - 历史留档（**都别再刷**）：`boot-v1.1-opt43-repacked.img`（sched_ext/scx 接管实验，实测**硬挂死**，已否证）；
   同步上游线的四次尝试 `boot-opt6-ltcdz5-up0914-repacked.img`、`boot-opt6a-upstream-repacked.img`、
   `boot-opt6a2-upstream-repacked.img` ⇒ **三个全循环开机**；`boot-CONTROL-opt5src-rebuilt-repacked.img`（md5 `d3c206d6…`，
@@ -155,8 +161,9 @@ fastboot reboot
   （md5 `073bfdaa9cbdb7ac67832193eb242f62`，开机 26 秒）同样只作留档。
 - 裸内核（**不能直接 flash**）已全部隔离进 `images/不能刷-裸内核/`。
 - 原厂底包：`images/boot_a.img`（md5 `a33ff9988e5ffa6a40a13b1c8dad4abb`，**永不删**）；`init_boot_a.img` 不要动（LKM root 在里面）。
-- git 锚点：**`v1.1-opt42`=`77aa56a8024c`（现役交付）**、`v1.1-opt41`=`e5f8f1aa13a8`（回退）、基线 `7a244ff18`(cctv18)、
-  开发树 HEAD=`66b2bf8c`(`v1.1-opt44`，含未采用的 `gov_override`) —— **那是开发分支，不是交付版**；`opt43`(scx 硬挂死)/`opt44` 均已否证，勿刷。
+- git 锚点：**`v1.1-opt42`=`77aa56a8024c`（已发布）**、`v1.1-opt41`=`e5f8f1aa13a8`（回退次选）、基线 `7a244ff18`(cctv18)；
+  开发树：**`opt45`=`dfea5e50`（设备现役·交付候选）**、`opt46`=`46457461`（BBRv3，⛔ 闸门2 判死）、`v1.1-opt44`=`66b2bf8c`（`gov_override`，未采用）
+  ⇒ **`opt43`(scx 硬挂死) / `opt44` / `opt46` 均已否证，勿刷**。
 - 配套源码仓库 [`ltcdz5/gt5pro-kernel-src`](https://github.com/ltcdz5/gt5pro-kernel-src)：**`main` 与 `opt42` 都是现役源码快照**（`main` 已于 2026-10-04 快进到 `a4428da6`，**默认分支即现役源码**）；另有 `history` 分支放逐版补丁序列（审计用）。
 
 ## 10. 开机慢：两个**并联**的坑（2026-09-29 全部修掉，87 秒 → 26 秒）
