@@ -42,12 +42,16 @@ description: 接手真我 GT5 Pro（RMX3888 / RE5C37 / SM8650 "pineapple" / Andr
 
 | 项 | 值 |
 |---|---|
-| 内核 | **`6.1.141-android14-11-o-ltcdz5-version1-opt37`** **`#62-ack304-version1-opt37 SMP PREEMPT`** |
-| 归档刷入件 | `images/boot-version1-opt37-repacked.img` md5 **`36f4c73c84491dd6beaa9717cd4b3143`** |
-| 裸内核 | `perf37/Image.p37` md5 `676b6cc93ce6813144c6c32ca980f617`（38,095,360 B） |
-| 源码 | WSL `/home/builder/kwork/cctv18/repo/local/kernel_workspace/common`，commit **`48e095183`**，tag **`version1-opt37`** |
-| 规模 | **2 文件（config + 版本串），零代码改动** |
-| 上一版（回退首选） | **opt36** `images/boot-version1-opt36-repacked.img` md5 **`6610944ca925083835e2b5763c92f3f6`** |
+| 内核 | **`6.1.141-android14-11-o-ltcdz5-v1.1-opt47`** / banner **`#74-ack304-v1.1-opt47`** |
+| 归档刷入件 | `images/boot-v1.1-opt47-repacked.img` md5 **`4ad29d109c597f018e30f2f908d5031a`**（201,326,592 B） |
+| 裸内核 | 构建产物 `out/arch/arm64/boot/Image` md5 `f7dcb69f3828a62f95687bc4da262195`（38,095,360 B） |
+| 源码 | WSL `/home/builder/kwork/cctv18/repo/local/kernel_workspace/common`，**分支 `opt47` / HEAD `5ddf8408b29a`**（tag 于发布时打） |
+| 规模 | **1 个文件**（`drivers/i2c/i2c-core-base.c`，+23/−4，纯函数体） |
+| 回退首选 | **opt42（已发布版）** `images/boot-v1.1-opt42-repacked.img` md5 `4bd362b0a17513474de217ea9beb8ae3`；次选 opt45-p2 `4edea16d3046577b83dd3c8cf82be154` |
+
+> 🔴 **权威值只看两处**：`README.md §9（成品与回退）` 与 `CHANGELOG.md §一（发布记录）`。
+> 本表是**快照**（2026-10-04 21:xx），任何文档与本表冲突时以那两处为准。
+> ⚠️ 2026-10-04 审计发现本表此前写「现役 opt37 / 回退 opt36」，**落后 10 个版本** —— 已更正。
 
 > **⚠️ 回退件已压缩（2026-10-03）**：为腾 C 盘，**历史镜像改成 `.img.gz`**（192MB → 约 16MB，12 倍）。
 > 保持**未压缩可直接刷**的只有 4 个：`boot-version1-opt37-repacked.img`（现役）、

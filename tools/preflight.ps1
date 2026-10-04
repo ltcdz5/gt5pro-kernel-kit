@@ -102,7 +102,29 @@ if (Test-Path $gh) {
   Say WARN ("源码仓库默认分支 = " + $def + "（须等于现役分支，或 README/Release 正文写明现役在哪）")
 } else { $warn++; Say WARN "没找到 gh，跳过仓库检查" }
 
-Head "8) 人工项（脚本不代填）"
+Head "8) 文档一致性（现役 / 回退字段跨文档）"
+# 根因防治：同一个字段被复制到多份文档 ⇒ 版本一更新就集体腐烂。
+# 2026-10-04 遗漏审计实测：现役有 5 种说法、回退首选有 7 种说法（SKILL.md 落后 10 个版本）。
+$canonName = @("CHANGELOG.md","README.md")
+$hits = @()
+foreach ($d in (Get-ChildItem $Kit -Recurse -Filter "*.md")) {
+  if ($canonName -contains $d.Name) { continue }
+  $ln = 0
+  foreach ($line in (Get-Content $d.FullName)) {
+    $ln++
+    if ($line -match "(现役|回退首选)" -and $line -match "opt\d+") {
+      if ($line -match "历史|已过期|过期|曾|当时|快照|档案") { continue }
+      $ok = $true
+      if ($line -match "现役" -and ($line -notmatch [regex]::Escape($Ver))) { $ok = $false }
+      if ($line -match "回退首选" -and ($line -notmatch "opt42")) { $ok = $false }
+      if (-not $ok) { $hits += ($d.Name + ":" + $ln + "  " + $line.Trim()) }
+    }
+  }
+}
+if ($hits.Count -eq 0) { $pass++; Say PASS "非权威文档里没有与现役/回退冲突的版本号" }
+else { $fail++; Say FAIL ("以下非权威文档的现役/回退字段与权威值冲突（" + $hits.Count + " 处）—— 权威值只看 CHANGELOG §一 / README §9"); $hits | Select-Object -First 15 | ForEach-Object { Write-Host ("      " + $_) -ForegroundColor Red } }
+
+Head "9) 人工项（脚本不代填）"
 Say MANUAL "观察期起止时刻（须满 24 小时，且期间 Scene 未更新、未刷机）"
 Say MANUAL "规范第一节 8 条判据的人工部分（体感/续航等）"
 Say MANUAL "未结案清单复核；半补项写明缺哪一半"

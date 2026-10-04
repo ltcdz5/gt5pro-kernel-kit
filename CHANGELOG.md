@@ -105,8 +105,9 @@
 
 | 版本 | git ref | 提交 | 日期 | 改动摘要 | 状态 |
 |---|---|---|---|---|---|
+| v1.1-opt47 | 分支 opt47 | 5ddf8408 | 10-04 | ACK 10-02 两条 i2c 修复：适配器注册竞态（`idr_alloc` 存 NULL + 注册完成前 `idr_replace`）+ `dev_set_name` 判返回值 + 失败路径补拆 IRQ domain | 🎯 设备现役·交付候选（观察期 10-04 18:20 → 10-05 18:20） |
 | v1.1-opt46 | 分支 opt46 | 46457461 | 10-04 | BBRv3 全套移植（上游作者 20 补丁，2228 行换掉 tcp_bbr.c） | ⛔ 闸门2 判死 367/493（见第三节 §7） |
-| v1.1-opt45 | 分支 opt45（交付清理 846c9c1b） | dfea5e50 → 846c9c1b | 10-04 | 摘掉 sched_ext 的 BPF struct_ops 类型（+ `scx_ops_enable` 早退作第二层）⇒ sched_ext 加载干净报错、不再硬挂死整机 | 🎯 设备现役·交付候选（观察期至 10-05 17:20） |
+| v1.1-opt45 | 分支 opt45（交付清理 846c9c1b） | dfea5e50 → 846c9c1b | 10-04 | 摘掉 sched_ext 的 BPF struct_ops 类型（+ `scx_ops_enable` 早退作第二层）⇒ sched_ext 加载干净报错、不再硬挂死整机 | ⛔ **已被 v1.1-opt47 supersede**（内容已并入 opt47，见 §一）⇒ **未发布** |
 | v1.1-opt44 | tag v1.1-opt44 | 66b2bf8c | 10-04 | 新增可写 governor 入口 gov_override（为已放弃的 LSE 解锁第三方 governor） | ⛔ 未交付（见第三节 §4） |
 | v1.1-opt43 | tag v1.1-opt43 | 5ed2774c | 10-04 | scx 部分接管实验：去掉 enable 的无条件 switch_all | ⛔ 硬挂死，已否证（见第三节 §3） |
 | v1.1-opt42 | tag v1.1-opt42 | 77aa56a8 | 10-03 | USB gadget bRequestType 位域误判 + LZ4 armv8 Permtable 越界读 | ★已发布（回退首选） |
