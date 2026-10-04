@@ -81,8 +81,9 @@ if (-not $devOk) {
 sec '5) 仓库'
 $gh = 'C:\Program Files\GitHub CLI\gh.exe'
 if (Test-Path $gh) {
-  $b2 = (& $gh api ('repos/ltcdz5/gt5pro-kernel-src/branches/' + $Ver) --jq '.name' 2>&1) -join ''
-  if ($b2 -match $Ver) { ok ('源码仓库有分支 ' + $Ver) } else { no ('源码仓库缺分支 ' + $Ver) }
+  $brName = ($Ver -replace '^v[0-9.]+-', '')   # 仓库约定：分支名去掉 vX.Y- 前缀（v1.1-opt47 -> opt47）
+  $b2 = (& $gh api ('repos/ltcdz5/gt5pro-kernel-src/branches/' + $brName) --jq '.name' 2>&1) -join ''
+  if ($b2 -match $brName) { ok ('源码仓库有分支 ' + $brName) } else { no ('源码仓库缺分支 ' + $brName) }
   $tg = (& $gh api ('repos/ltcdz5/gt5pro-kernel-src/git/ref/tags/' + $Ver) --jq '.ref' 2>&1) -join ''
   if ($tg -match $Ver) { ok ('源码仓库有 tag ' + $Ver) } else { no ('源码仓库缺 tag ' + $Ver) }
   wn ('默认分支 = ' + ((& $gh api 'repos/ltcdz5/gt5pro-kernel-src' --jq '.default_branch' 2>&1) -join ''))
@@ -141,7 +142,6 @@ if (Test-Path $ai) {
 
 sec '7) 人工项（不代填）'
 foreach ($m in @('观察期起止时刻（须满 24h，期间 Scene 未更新、未刷机）','规范第一节 8 条判据的人工部分（体感/续航）','未结案清单复核；半补项写明缺哪一半')) { Write-Host ('  MANUAL  ' + $m) -ForegroundColor Cyan }
-
 Write-Host ''
 $col = if ($nFail -gt 0) { 'Red' } else { 'Green' }
 Write-Host ('===== PASS=' + $nPass + '  FAIL=' + $nFail + '  WARN=' + $nWarn + ' =====') -ForegroundColor $col

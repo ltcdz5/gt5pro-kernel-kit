@@ -27,7 +27,7 @@
 
 
 > **开源状态**：本仓库以 **GPL-2.0** 开源（见 [`LICENSE`](LICENSE)），全部内容公开可复现。
-> **配套内核源码仓库**：[`ltcdz5/gt5pro-kernel-src`](https://github.com/ltcdz5/gt5pro-kernel-src) —— 已发布源码 **`opt42`**；交付候选 **`opt45`**（观察期至 2026-10-05 17:20）
+> **配套内核源码仓库**：[`ltcdz5/gt5pro-kernel-src`](https://github.com/ltcdz5/gt5pro-kernel-src) —— **已发布源码 `v1.1-opt47`**（`main` 与分支 `opt47` = `b195003b`；注释 tag `v1.1-opt47`；逐版补丁见 `history` 分支 `build-history/0034..0038`）
 > **版本与发布**：逐版本改动史见 [`CHANGELOG.md`](CHANGELOG.md)；发布节奏（**观察期满一天 + changelog 必须覆盖中间所有版本**）见 [`发布规范-20261004.md`](发布规范-20261004.md)；**正式发布见源码仓库的 [Releases](https://github.com/ltcdz5/gt5pro-kernel-src/releases)**；**逐版真实 diff 见源码仓库 [history 分支的 build-history/](https://github.com/ltcdz5/gt5pro-kernel-src/tree/history/build-history)**
 
 ## ⚠️ 开源合规与来源标注（复刻 / 借鉴 / 引用）
@@ -160,14 +160,14 @@ fastboot reboot
 - 源码树：另存（1.7G，`git bundle` 见同目录）
 
 ## 9. 成品与回退（当前状态）
-- **设备现役（已刷）＝`v1.1-opt47`（交付候选）**：`images/boot-v1.1-opt47-repacked.img`，md5 `4ad29d109c597f018e30f2f908d5031a`（裸核 `f7dcb69f3828a62f95687bc4da262195`；banner `#74-ack304-v1.1-opt47`）
+- **设备现役（已刷）＝`v1.1-opt47`（★已发布 2026-10-04）**：`images/boot-v1.1-opt47-repacked.img`，md5 `4ad29d109c597f018e30f2f908d5031a`（裸核 `f7dcb69f3828a62f95687bc4da262195`）
   含：i2c 适配器注册竞态修复 + 失败路径补拆 IRQ domain（取自 ACK 10-02 两条）+ 上一版 opt45 的「防 sched_ext 硬挂死」
   ⚠️ 观察期起点 **2026-10-04 18:20** ⇒ **10-05 18:20 期满后**才作为交付版发布；`v1.1-opt45` 探针版已被它 supersede（未发布）。
 - **上一个候选（已被 supersede）＝`v1.1-opt45`（探针 2）**：`images/boot-v1.1-opt45-p2-repacked.img`，md5 `4edea16d3046577b83dd3c8cf82be154`
   （裸核 md5 `60d964f748c5f1c56750833c6eb2b6ad`；banner `#72-ack304-v1.1-opt45`）
   它只做**一件纯收益的事**：把 `sched_ext_ops` 从 BPF struct_ops 类型表里摘掉 ⇒ **任何 sched_ext 的 BPF 调度器加载都会干净报错，而不是硬挂死整机**
   （此前实测：`bpftool prog loadall` 仅加载就挂 ⇒ uptime 归零 + 看门狗复位）。同版还带一句 `scx_ops_enable()` 早退（实测永远到不了，作第二层）。
-  ⚠️ 观察期起点 **2026-10-04 17:20** ⇒ **10-05 17:20 期满后才作为交付版发布**；此前它只是「已上机的交付候选」。
+  ⚠️ **观察期实际只有 4.6 小时（2026-10-04 18:20 → 22:5x），未满 24 小时 —— 机主明确决定提前发布**；已记录在案并写进 Release 正文。
 - **已发布版＝`v1.1-opt42`**：`images/boot-v1.1-opt42-repacked.img`，md5 `4bd362b0a17513474de217ea9beb8ae3`
   （裸核 `perf42/Image.opt42` md5 `2e20e2c1b7dea60cdfee3d58a730a79f`；横幅 `6.1.141-android14-11-o-ltcdz5-v1.1-opt42`）
   含 opt38~opt42 的全部安全修复：ipset dump 竞态、nf_conntrack_expect 空指针解引用、TCP 非对齐读、
@@ -184,9 +184,9 @@ fastboot reboot
 - 裸内核（**不能直接 flash**）已全部隔离进 `images/不能刷-裸内核/`。
 - 原厂底包：`images/boot_a.img`（md5 `a33ff9988e5ffa6a40a13b1c8dad4abb`，**永不删**）；`init_boot_a.img` 不要动（LKM root 在里面）。
 - git 锚点：**`v1.1-opt42`=`77aa56a8024c`（已发布）**、`v1.1-opt41`=`e5f8f1aa13a8`（回退次选）、基线 `7a244ff18`(cctv18)；
-  开发树：**`opt45`=`dfea5e50`（设备现役·交付候选）**、`opt46`=`46457461`（BBRv3，⛔ 闸门2 判死）、`v1.1-opt44`=`66b2bf8c`（`gov_override`，未采用）
+  开发树：**`opt47`=`5ddf8408`（设备现役·★已发布）**、`opt45`=`6d61a696`（内容已并入 opt47）、`opt46`=`46457461`（BBRv3，⛔ 闸门2 判死）、`v1.1-opt44`=`66b2bf8c`（`gov_override`，未采用）
   ⇒ **`opt43`(scx 硬挂死) / `opt44` / `opt46` 均已否证，勿刷**。
-- 配套源码仓库 [`ltcdz5/gt5pro-kernel-src`](https://github.com/ltcdz5/gt5pro-kernel-src)：**`main` 与 `opt42` 都是现役源码快照**（`main` 已于 2026-10-04 快进到 `a4428da6`，**默认分支即现役源码**）；另有 `history` 分支放逐版补丁序列（审计用）。
+- 配套源码仓库 [`ltcdz5/gt5pro-kernel-src`](https://github.com/ltcdz5/gt5pro-kernel-src)：**`main` 与分支 `opt47` 都是现役源码快照 `b195003b`**（2026-10-04 发布时快进）
 
 ## 10. 开机慢：两个**并联**的坑（2026-09-29 全部修掉，87 秒 → 26 秒）
 > ⚠️ 两个坑同时在跑，开机时长由更长那头封顶 ⇒ **只修任何一个几乎看不到收益**（实测只修坑1：72821→71383，省 1.4 秒）。
