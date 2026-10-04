@@ -43,6 +43,26 @@ CRC 照不到这两类: 两边都有的符号一个都没变, 变的是"集合�
    现改为: **真基准(ELF 解析, vko_syms_real.txt)是权威判定**;
    旧基准降级为**提示**(命中只打印警告, 不判 FAIL), 信息不丢且不再误判。
 
+---- 2026-10-04 修复: 缺"遮蔽"这一侧(子代理对抗性评审发现, 有设备实证) ----
+6) **内核导出遮蔽厂商模块导出 —— 原闸门完全看不见。**
+   Linux 的模块符号解析: 先查内核 ksymtab, 找不到才在依赖模块里找。
+   于是"内核新导出一个某厂商模块已经导出的同名符号"会让所有引用方改绑到内核那份实现。
+   实证: 设备 /proc/kallsyms 里
+       T test_task_ux / __kstrtab_test_task_ux  [oplus_bsp_sched_assist]
+   => test_task_ux 是**厂商模块 oplus_bsp_sched_assist 自己导出**的(不是内核);
+      而那 12 个模块对它是 **GLOBAL UND 强引用**(readelf -sW), 由该模块解析。
+      内核一旦也导出它(a4/opt6 那一行 EXPORT_SYMBOL_GPL) => 遮蔽 => 活锁 => 硬复位。
+   ⚠️ 这同时更正了判砖实验原文的机制描述("弱引用守卫翻真"是错的, 真相是遮蔽)。
+
+7) **模块侧基准原来只有 493 个 .ko, 设备上是 622 个有符号归属的模块**(差 232 个),
+   而缺失的那批里就有 test_task_ux 的真正 owner。=> 当年 a4 被拦住只是 strings 噪声基准的巧合。
+   现基准改为: 设备 622 个模块的 **__ksymtab 导出名并集 = 4623 条**
+   (随仓库 ship: refs/mod-exports-622mods-4623.txt), 判定为**硬规则**:
+   **新增导出 ∩ 模块导出集 ≠ 空 ⇒ FAIL(遮蔽), 不允许解释掉。**
+
+8) 判据的表述也要更正: 原提法"①∩模块导出(=遮蔽)②被强引用且无人提供(=补缺)"会**同时命中同一条符号**
+   (test_task_ux 就是活例), 交集写法自相矛盾。正确顺序是: **先判遮蔽(硬禁止), 再谈补缺**。
+
 用法:
     gate_new_exports.py <候选 symvers> [更多候选...]
 """
@@ -51,6 +71,9 @@ import os
 
 VKO_REAL = '/home/builder/abi/vko_syms_real.txt'   # ★权威: 真 ELF 解析的 UND 引用名并集 (4754 条)
 VKO = '/home/builder/abi/vko_syms.txt'             # 仅作提示: strings 转储 (199295 条, 98% 噪声)
+# ★ 2026-10-04 新增: 厂商模块【自己导出】的符号集合(遮蔽判定, 4623 条 = 设备 622 模块的 __ksymtab 并集)
+#   随仓库 ship: refs/mod-exports-622mods-4623.txt
+MOD_EXPORTS = '/home/builder/abi/mod_exports_all.txt'
 BASE = '/home/builder/opt5-baseline/Module.symvers'   # 能开机内核的导出全表(含模块导出, 内部按口径过滤)
 
 # 候选导出数低于基准的这个比例时告警(候选可能被截断)
@@ -101,6 +124,16 @@ def main():
     vko_adv = set()
     if os.path.exists(VKO):
         vko_adv = set(x.strip() for x in open(VKO, errors='replace') if x.strip())
+    # ★ 遮蔽判定基准(硬规则所需, fail-closed)
+    if not os.path.exists(MOD_EXPORTS):
+        print("错误: 缺【模块导出】基准 %s" % MOD_EXPORTS)
+        print("      遮蔽判定必需; 随本仓库 ship 在 kernel-kit/refs/mod-exports-622mods-4623.txt")
+        return EXIT_ERROR
+    mod_exports = set(x.strip() for x in open(MOD_EXPORTS, errors='replace') if x.strip())
+    if not mod_exports:
+        print("错误: 模块导出基准 %s 为空" % MOD_EXPORTS)
+        return EXIT_ERROR
+
     if not os.path.exists(BASE):
         print("错误: 缺基准 %s" % BASE)
         return EXIT_ERROR
@@ -117,6 +150,8 @@ def main():
     print("厂商基准(提示/strings)         = %d 个   [98%% 噪声, 仅作参考]" % len(vko_adv))
     print("基准内核(vmlinux)导出 = %d 个   [另有 %d 个 =m 模块导出, 不参与判定]"
           % (len(base_vm), len(base_mod)))
+    print("厂商模块【自己导出】的符号 = %d 个   [遮蔽判定基准, 设备 622 模块]"
+          % len(mod_exports))
     print("=" * 84)
 
     rc = EXIT_PASS
@@ -152,10 +187,17 @@ def main():
         hit_gone = sorted(gone & vko_real)
         adv_add = sorted(added & vko_adv)
         adv_gone = sorted(gone & vko_adv)
+        # ★ 遮蔽: 内核新导出了某厂商模块自己也在导出的同名符号 => 解析优先级改变 => 禁止
+        shadow = sorted(added & mod_exports)
 
-        verdict = 'FAIL 判砖' if (hit_add or hit_gone) else 'PASS'
-        print("%-30s 新增=%-5d 消失=%-5d | 命中厂商: 新增=%-4d 消失=%-4d  %s"
-              % (name, len(added), len(gone), len(hit_add), len(hit_gone), verdict))
+        verdict = 'FAIL 判砖' if (hit_add or hit_gone or shadow) else 'PASS'
+        print("%-30s 新增=%-5d 消失=%-5d | 命中厂商: 新增=%-4d 消失=%-4d 遮蔽=%-3d  %s"
+              % (name, len(added), len(gone), len(hit_add), len(hit_gone), len(shadow), verdict))
+        for h in shadow[:12]:
+            print("      ⛔ 遮蔽 %s   (该名字已由某个厂商模块 __ksymtab 导出;"
+                  " 内核再导出会让引用方改绑内核实现 -> 活锁)" % h)
+        if len(shadow) > 12:
+            print("      ... 另有 %d 个遮蔽命中未列出" % (len(shadow) - 12))
         # 旧基准的命中只作提示(它有 98% 噪声, 不能判 FAIL)
         adv_only_add = [x for x in adv_add if x not in hit_add]
         adv_only_gone = [x for x in adv_gone if x not in hit_gone]
@@ -175,7 +217,7 @@ def main():
         if len(hit_gone) > 12:
             print("      ... 另有 %d 个消失命中未列出" % (len(hit_gone) - 12))
 
-        if hit_add or hit_gone:
+        if hit_add or hit_gone or shadow:
             rc = EXIT_BRICK
 
         # 模块导出漂移: 仅当候选本身带模块导出(即传的是 Module.symvers)时才有意义
