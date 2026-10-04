@@ -51,6 +51,21 @@
 
 ---
 
+### 探针版 v1.1-opt45（T0，**非发布**）—— 2026-10-04
+
+| 项 | 值 |
+|---|---|
+| 目的 | 路线 C/T0：**让 sched_ext 干净失败**，不再硬挂死整机；同时作为「挂点定位」的第一枚探针 |
+| 基线 | 从 **v1.1-opt42（交付版）** 建分支，**不含** opt43（scx 实验）/opt44（gov_override） |
+| 改动 | 仅 kernel/sched/ext.c 的 scx_ops_enable() 开头插 14 行注释 + 3 行（mutex_unlock + pr_info + return -EOPNOTSUPP）；setlocalversion → -v1.1-opt45 |
+| 镜像 | boot-v1.1-opt45-repacked.img，md5 **053cfb501c599fa3a6480c10ec498073**（裸 Image 16282506a336ccb8331618f4e70f5c9f） |
+| 闸门 1 | 新增=50 消失=1 ｜ 命中厂商 0/0 ｜ **遮蔽=0** → PASS（与 opt42 完全相同 ⇒ 导出集合零变化） |
+| 闸门 2 | 会拒绝装载 = **1**（只有 bluetooth / sk_filter_trim_cap 基线）⇒ 非蓝牙拒载 = 0 |
+| 上机（16:41 刷入） | uname -r 正确、banner #71-ack304-v1.1-opt45、槽位 _a、**lsmod 621**、oops 0 |
+| **测试结果（决定性）** | ① bt btftool struct_ops register（T0 应拦下）→ **仍然硬挂死**（uptime 归零、bootreason=reboot）<br>② 只 prog loadall（**不注册**）→ **同样硬挂死**<br>③ 对照：普通 array map 创建 + 普通 socket filter 程序加载 → **全部正常**（无挂死） |
+| 结论 | **挂点在 BPF 对象加载 / struct_ops map 建立阶段，根本到不了 scx_ops_enable**（T0 的 pr_info 从未触发）<br>⇒ 路线 A 的「逐段短路二分」表作废（它切的全是 enable 内部）；B1 的「回移 efe231d9de 解锁」也打不到点上<br>⇒ 挂死是 **struct_ops 特有**，与普通 BPF 无关 |
+| 观察期 | 若把 opt45 当交付版，窗口从 **2026-10-04 16:41** 起算（10-05 16:41 满）；但它是**探针版**，不作为发布候选 |
+
 ## 二、全量版本明细（opt5 → v1.1-opt42）
 
 > 改动摘要取 **git commit 标题原文**（不改写）；日期为 tag/提交日期。
