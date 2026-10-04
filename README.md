@@ -142,7 +142,10 @@ fastboot reboot
 - 源码树：另存（1.7G，`git bundle` 见同目录）
 
 ## 9. 成品与回退（当前状态）
-- **设备现役（已刷）＝`v1.1-opt45`（探针 2 构建）**：`images/boot-v1.1-opt45-p2-repacked.img`，md5 `4edea16d3046577b83dd3c8cf82be154`
+- **设备现役（已刷）＝`v1.1-opt47`（交付候选）**：`images/boot-v1.1-opt47-repacked.img`，md5 `4ad29d109c597f018e30f2f908d5031a`（裸核 `f7dcb69f3828a62f95687bc4da262195`；banner `#74-ack304-v1.1-opt47`）
+  含：i2c 适配器注册竞态修复 + 失败路径补拆 IRQ domain（取自 ACK 10-02 两条）+ 上一版 opt45 的「防 sched_ext 硬挂死」
+  ⚠️ 观察期起点 **2026-10-04 18:20** ⇒ **10-05 18:20 期满后**才作为交付版发布；`v1.1-opt45` 探针版已被它 supersede（未发布）。
+- **上一个候选（已被 supersede）＝`v1.1-opt45`（探针 2）**：`images/boot-v1.1-opt45-p2-repacked.img`，md5 `4edea16d3046577b83dd3c8cf82be154`
   （裸核 md5 `60d964f748c5f1c56750833c6eb2b6ad`；banner `#72-ack304-v1.1-opt45`）
   它只做**一件纯收益的事**：把 `sched_ext_ops` 从 BPF struct_ops 类型表里摘掉 ⇒ **任何 sched_ext 的 BPF 调度器加载都会干净报错，而不是硬挂死整机**
   （此前实测：`bpftool prog loadall` 仅加载就挂 ⇒ uptime 归零 + 看门狗复位）。同版还带一句 `scx_ops_enable()` 早退（实测永远到不了，作第二层）。
