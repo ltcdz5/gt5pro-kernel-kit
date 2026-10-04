@@ -66,6 +66,21 @@
 | 结论 | **挂点在 BPF 对象加载 / struct_ops map 建立阶段，根本到不了 scx_ops_enable**（T0 的 pr_info 从未触发）<br>⇒ 路线 A 的「逐段短路二分」表作废（它切的全是 enable 内部）；B1 的「回移 efe231d9de 解锁」也打不到点上<br>⇒ 挂死是 **struct_ops 特有**，与普通 BPF 无关 |
 | 观察期 | 若把 opt45 当交付版，窗口从 **2026-10-04 16:41** 起算（10-05 16:41 满）；但它是**探针版**，不作为发布候选 |
 
+**探针 2（同日 17:20 刷入，banner #72）—— 把拦截层上移到 BPF 类型表**
+
+| 项 | 值 |
+|---|---|
+| 改动 | 仅 kernel/bpf/bpf_struct_ops_types.h：不再注册 BPF_STRUCT_OPS_TYPE(sched_ext_ops)（保留 T0 那句早退，作第二层） |
+| 镜像 | boot-v1.1-opt45-p2-repacked.img，md5 **4edea16d3046577b83dd3c8cf82be154**（裸 Image 60d964f748c5f1c56750833c6eb2b6ad） |
+| 闸门 1 | 新增=50 消失=1 ｜ 命中厂商 0/0 ｜ **遮蔽=0** → PASS（导出集合与 opt42 完全一致） |
+| 闸门 2 | 会拒绝装载 = 1（仅 bluetooth 基线）⇒ 非蓝牙 = 0 |
+| 上机 | uname/banner 正确、槽位 _a、lsmod **621**、oops 0、disagrees 0 |
+| **关键测试** | ① bpftool prog loadall simple.bpf.o → **rc=255 干净报错，uptime 不变、不挂死**<br>② bpftool struct_ops register simple.bpf.o → **rc=255 干净报错，不挂死**<br>报错原文：libbpf: struct_ops init_kern: struct bpf_struct_ops_sched_ext_ops is not found in kernel BTF |
+| 结论 | ✅ **路线 C 的目标达成，且落在正确的层**：任何 sched_ext 的 BPF 调度器在这台机器上都是「一行干净报错」，不再是「整机硬挂死 + 看门狗重启」 |
+| 遗留 | 限频器读数（刷入后 7 分钟时 max 仍=硬件最高）需复测，判断是 Scene 尚未接管还是又失效 |
+
+> ⚠️ 本轮同时确认：**挂死在 BPF 加载阶段，与 scx_ops_enable 无关** —— T0 那层永远到不了，所以「逐段短路二分」（路线 A）在这种情形下无效；正确做法是在 **BPF struct_ops 类型表**上拦截。
+
 ## 二、全量版本明细（opt5 → v1.1-opt42）
 
 > 改动摘要取 **git commit 标题原文**（不改写）；日期为 tag/提交日期。
