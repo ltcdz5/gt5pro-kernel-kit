@@ -8,7 +8,7 @@
 ## 一、错在哪：**闸门1 的基准不是符号表，是 `strings` 转储**
 
 ### 事实（可复现）
-`kernel-kit/判砖实验-a4a5.md` §3 记的基准生成命令是
+`kernel-kit/档案/事故与更正/判砖实验-a4a5.md` §3 记的基准生成命令是
 ```
 strings -a /vendor_dlkm/lib/modules/*.ko /vendor/lib/modules/*.ko
 ```

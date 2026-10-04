@@ -45,7 +45,7 @@
 | 闸门1 gate_new_exports.py | PASS（命中厂商：新增=0 消失=0） |
 | 闸门2 gate_vko_crc.py | 会拒绝装载的模块 = 1，即判定基线 bluetooth.ko / sk_filter_trim_cap |
 | 更强证据 | opt37 与 opt42 的 vmlinux.symvers **字节级完全相同**（15437 行 / 923271 B）⇒ 导出集合与全部 CRC 零变化 |
-| 代码审核 | 8 处改动逐条与上游修法一致（见《审核-opt37到opt42代码审核-20261004.md》） |
+| 代码审核 | 8 处改动逐条与上游修法一致（见《档案/闸门与ABI/审核-opt37到opt42代码审核-20261004.md》） |
 | 上机健康（2026-10-04 02:33 实测） | 内核 6.1.141-android14-11-o-ltcdz5-v1.1-opt42；槽位 _a；governor uag x4；oops 0；lsmod 621 |
 | 频率控制 | 限频器 max 1132800/960000/960000/902400；下限 min 787200/729600/729600/787200 ⇒ Scene LP 正常 |
 
@@ -321,7 +321,7 @@ boot_progress_start=12.87s），并与 opt9 一起**验证了这条裁剪规则*
 | 日期 | tag 创建日 | git for-each-ref --sort=creatordate |
 | 状态 | 上机核验台账 + images/清单.txt | 见 kernel-kit 下各类 -上机核验-*.md |
 | 镜像 md5 | images/清单.txt | 改文件后重跑 tools/images_出清单.sh |
-| 否证原因 | 定案文档 | 判砖实验-a4a5.md、⛔事故-scx加载硬挂死-20261003.md、governor只读之谜-*.md、抖音功耗异常-根因定位与结案-*.md |
+| 否证原因 | 定案文档 | 档案/事故与更正/判砖实验-a4a5.md、档案/事故与更正/⛔事故-scx加载硬挂死-20261003.md、governor只读之谜-*.md、抖音功耗异常-根因定位与结案-*.md |
 | **构建历史（审计用）** | 源码仓库 **history 分支的 build-history/**：opt5→v1.1-opt42 的 33 个补丁，每个保留原始 SHA / 作者 / 日期 / 提交原文 / 完整 diff | 打开对应补丁与上表「提交」列逐一核对；git am 可复现 |
 
 ### 可审计性说明（2026-10-04）

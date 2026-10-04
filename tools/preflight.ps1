@@ -116,6 +116,16 @@ foreach ($t in ($tracked | Where-Object { $_ -match '\.md$' -and $_ -notmatch 'N
 }
 if ($hb.Count -eq 0) { ok '个人 handle 仅在署名类文件' } else { no ('handle 越界：' + ($hb -join ', ')) }
 if ((Test-Path (Join-Path $Kit 'NOTICE.md')) -and ((Get-Content (Join-Path $Kit 'NOTICE.md') -Raw).Length -gt 200)) { ok 'NOTICE.md 在（上游归属保留）' } else { no 'NOTICE.md 缺失' }
+# 顶层 .md 数量上限（防止顶层再次膨胀）
+$topMd = @(Get-ChildItem $Kit -Filter '*.md' -File)
+if ($topMd.Count -le 12) { ok ('顶层 .md = ' + $topMd.Count + '（上限 12）') } else { no ('顶层 .md = ' + $topMd.Count + ' 超过上限 12 ⇒ 该进 档案/') }
+# 档案/ 下每份必须在档案索引里登记
+$arcDir = Join-Path $Kit '档案'
+if (Test-Path $arcDir) {
+  $idx = Get-Content (Join-Path $arcDir 'README.md') -Raw
+  $un = @(Get-ChildItem $arcDir -Recurse -Filter '*.md' -File | Where-Object { $_.Name -ne 'README.md' -and ($idx -notmatch [regex]::Escape($_.Name)) })
+  if ($un.Count -eq 0) { ok '档案/ 全部已在索引登记' } else { no ('档案索引漏登记 ' + $un.Count + ' 份：' + (($un | Select-Object -First 3 | ForEach-Object { $_.Name }) -join ', ')) }
+}
 $ai = Join-Path $Kit 'archive\README.md'
 if (Test-Path $ai) {
   $rows = @(Get-Content $ai | Where-Object { $_ -match '^[|]' -and $_ -match '[0-9]' })

@@ -1,4 +1,4 @@
-<!-- badges -->
+﻿<!-- badges -->
 [![License](https://img.shields.io/badge/License-GPL--2.0-blue.svg)](LICENSE)
 [![Device](https://img.shields.io/badge/Device-Realme%20GT5%20Pro%20(RMX3888)-orange.svg)](https://github.com/ltcdz5/gt5pro-kernel-kit)
 [![SoC](https://img.shields.io/badge/SoC-Snapdragon%208%20Gen%203%20(SM8650)-0a7bbb.svg)]()
@@ -7,6 +7,8 @@
 [![Build](https://img.shields.io/badge/%E6%9E%84%E5%BB%BA-%E6%9C%AC%E5%9C%B0%EF%BC%88%E6%97%A0%20CI%EF%BC%89-2ea44f.svg)]()
 
 # GT5 Pro 自编内核 · 核件包（kernel-kit）
+
+> 📁 **历史记录（80 份，按主题分 10 类）** 见 [档案/README.md](档案/README.md) —— 顶层只留常青入口（本表/台账/规范/交接/救砖/路线/数据表）。
 
 > **开源状态**：本仓库以 **GPL-2.0** 开源（见 [`LICENSE`](LICENSE)），全部内容公开可复现。
 > **配套内核源码仓库**：[`ltcdz5/gt5pro-kernel-src`](https://github.com/ltcdz5/gt5pro-kernel-src) —— 已发布源码 **`opt42`**；交付候选 **`opt45`**（观察期至 2026-10-05 17:20）
@@ -279,4 +281,4 @@ bash kernel-kit/verify_image.sh <裸Image 或 repacked.img> [基线目录=~/opt5
 **任何"全绿所以我可以直接刷"的说法都不成立**；运行时正确性只认刷机，而刷机就要预备回退（现役回退包＝opt5）。
 `Module.symvers` 的"多/少 N 行"尤其只作线索：它是 `make all` 与 `make Image` 的记账口径差异，
 真实符号要看 `System.map`（今天据此撤回过一次错误结论）。
-  与原厂差异-20260930.md ← opt10 vs 真我原厂：源码34文件/config 81项(36有意+45天然)/够不到的5项/功能差集
+  档案/基线与对照/与原厂差异-20260930.md ← opt10 vs 真我原厂：源码34文件/config 81项(36有意+45天然)/够不到的5项/功能差集

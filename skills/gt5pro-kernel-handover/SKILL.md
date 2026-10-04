@@ -77,7 +77,7 @@ description: 接手真我 GT5 Pro（RMX3888 / RE5C37 / SM8650 "pineapple" / Andr
 > `ufshcd_mcq_req_to_hwq()` 未判空（同树 `ufs-mcq.c:523` 对同一 helper 是判空的，是最硬内证）；
 > ② h8 exit 在 runtime resume 失败时走 link recovery 而非 error handler（上游 `35dabf4503b9`/ACK `565241067e73`）；
 > ③ ②的后续重构 `4a07d6ce4683`（**单独打不上，必须成对**）。
-> 详见 `kernel-kit\version1-opt36-UFS修复-20261003.md`。
+> 详见 `kernel-kit\档案/立项与方案/version1-opt36-UFS修复-20261003.md`。
 >
 > **P35 = version1 起点**：把版本串后缀从 `-opt15` 切到 `-version1-opt35`。
 > 改的是 **`scripts/setlocalversion` 末尾那一行硬编码**（`CONFIG_LOCALVERSION` 是空的、
@@ -98,7 +98,7 @@ description: 接手真我 GT5 Pro（RMX3888 / RE5C37 / SM8650 "pineapple" / Andr
 + **SSG 电梯**（`CONFIG_MQ_IOSCHED_SSG`）+ `PANIC_TIMEOUT=30`。
 ⚠️ **构建走了三轮**（编译错 → 闸门1 FAIL 判砖 → PASS），含两次 **hunk 级**回退；**闸门第 5 次救场**
 （`prep_new_page` 导出会翻厂商弱引用）。详见 `references/闸门与判据.md` §构建迭代。
-详见 `references/现状与产物.md`、`ACK第三轮-落地-20261002.md`、`ACK第四轮-落地与收敛到头-20261002.md`。
+详见 `references/现状与产物.md`、`档案/ACK/ACK第三轮-落地-20261002.md`、`档案/ACK/ACK第四轮-落地与收敛到头-20261002.md`。
 ⚠️ **自动收割已经到头**：**122 个冲突块已在本轮 P28 做完**；**更早窗口已由 round5 实测确认无货**（2025-12-10..2026-05-20，2787 非 merge → 过滤 386 → 真候选 119，其中全冲突 27、碰 25 个 `.h`、新增 30 个导出，闸门1 必然判砖，且缺前置 config）；剩下的是 8 个碰中枢结构体（闸门封死）+ 依赖缺失 10，**别再自动往下捞**。
 
 ## 五个常见任务的操作流程
@@ -238,7 +238,7 @@ skill 若需更新则同步到交接包并**逐文件 md5 校验**；`kernel-kit
 | v1.1-opt41 | AF_PACKET 时间戳 cmsg 越界读 | `sock_rmem_free` 由 `t`→`T`（生效直接证据） |
 | v1.1-opt42 | USB `bRequestType` 位域误判 + LZ4 armv8 `Permtable` 越界读 | 前者 **ADB 自证**；后者反汇编证实；均为 latent→实测 |
 
-详细见 `kernel-kit/` 下各 `vX.X-optNN-上机核验-*.md` 与 `事故-结构体CRC影响面不可穷举-20261003.md`。
+详细见 `kernel-kit/` 下各 `vX.X-optNN-上机核验-*.md` 与 `档案/事故与更正/事故-结构体CRC影响面不可穷举-20261003.md`。
 
 
 ### B. 判"某个改动到底进没进这台机器"
@@ -294,5 +294,5 @@ adb shell su -c 'mkdir -p /dev/tmpv; mount -o ro /dev/block/dm-25 /dev/tmpv -t e
 ## 权威来源与位置
 
 - **本 skill 的权威副本在 git 仓**：`ltcdz5/gt5pro-kernel-kit` 的 `skills/gt5pro-kernel-handover/`（分支 `master`）。改这里、随仓分发；别人接手＝`git clone` 该仓，把该目录放进自己的 `~/.qoder-cn/skills/`。
-- 详细证据与全过程台账在**同仓根目录的 md**（`opt13-减脂版-20260930.md`、`与原厂差异-20260930.md`、`改动总账与正向判定-20261001.md`、`root检测面清单-20261001.md`、`留存基线-*` 等）。**本 skill 只写流程与判据，不复制台账**——避免两处说法分叉。
+- 详细证据与全过程台账在**同仓根目录的 md**（`档案/立项与方案/opt13-减脂版-20260930.md`、`档案/基线与对照/与原厂差异-20260930.md`、`档案/基线与对照/改动总账与正向判定-20261001.md`、`档案/工具方法/root检测面清单-20261001.md`、`留存基线-*` 等）。**本 skill 只写流程与判据，不复制台账**——避免两处说法分叉。
 - 机器的桌面工作目录：`C:\Users\USERNAME\Desktop\gt5pro-kernel\`（`README.txt` 是索引；`images/清单.txt` 是所有镜像/包的大小+md5）。
