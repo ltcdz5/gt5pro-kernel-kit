@@ -30,6 +30,10 @@ ACKBASE_TAG=refs/tags/android14-6.1-2025-07_r9
 ACKBASE_LOCAL=refs/tags/ackbase07r9
 LAST_SEEN_DATE=2026-10-02
 REPO=/home/builder/kwork/cctv18/repo/local/kernel_workspace/common
+# 传输参数：googlesource 上大传输常被 TLS 中途掐断（curl 56 / GnuTLS -110）
+#   => 缩深度 + 强制 HTTP/1.1 + 放大 postBuffer + 重试；仍失败则 fail-closed（不许当没变化）
+ACK_DEPTH=500
+ACK_TRIES=3
 
 CMD=$1
 [ -n "$CMD" ] || CMD=verify
@@ -50,6 +54,19 @@ errcheck() {
   printf '%s\n' "$txt" | sed "s/^/  [stderr:$tag] /" >&2
   bad=$(printf '%s\n' "$txt" | grep -icE 'error|fatal|could not|denied|unable|refus' || true)
   [ "$bad" = 0 ] || fail "$tag 出现 $bad 行 error 级 stderr（见上）"
+}
+
+# 带重试的 fetch（网络掐断是常态，不是异常）
+ack_fetch() {
+  local src=$1 refspec=$2 i rc=1
+  for i in $(seq 1 $ACK_TRIES); do
+    git -c http.version=HTTP/1.1 -c http.postBuffer=524288000 fetch --filter=blob:none --depth=$ACK_DEPTH "$src" "$refspec" >/tmp/ack_out 2>/tmp/ack_err
+    rc=$?
+    [ "$rc" = 0 ] && { [ "$i" -gt 1 ] && echo "  ✅ 第 $i 次尝试成功"; return 0; }
+    echo "  ⚠️ 第 $i/$ACK_TRIES 次 fetch 失败 rc=$rc：$(tail -2 /tmp/ack_err | tr '\n' ' ')" >&2
+    sleep 5
+  done
+  return $rc
 }
 
 [ -d "$REPO" ] || fail "找不到内核树 $REPO"
@@ -87,18 +104,17 @@ case "$CMD" in
     echo "=== 0) fetch 前体积 ==="
     git count-objects -vH | grep -E '^(size-pack|count)' | sed 's/^/  /'
     echo "=== 1) 取权威源分支（blobless, depth=2000）==="
-    git fetch --filter=blob:none --depth=2000 "$ACK" "$BRANCH:$REMOTE_REF" >/tmp/ack_out 2>/tmp/ack_err
-    rc=$?
-    [ "$rc" = 0 ] || fail "fetch 分支失败 rc=$rc: $(cat /tmp/ack_err)"
+    ack_fetch "$ACK" "$BRANCH:$REMOTE_REF"; rc=$?
+    [ "$rc" = 0 ] || fail "fetch 分支失败（已重试 $ACK_TRIES 次）: $(tail -3 /tmp/ack_err | tr '\n' ' ')"
     errcheck fetch /tmp/ack_err
     s=$(tip)
     [ -n "$s" ] || fail "fetch 后仍取不到 $REMOTE_REF"
     git show -s --format='  ✅ tip: %h %cs %s' "$s"
     echo "=== 2) 取基线 $BASE ==="
     if [ "$BASE" = "$ACKBASE_TAG" ]; then
-      git fetch --filter=blob:none --depth=2000 "$ACK" "$ACKBASE_TAG:$ACKBASE_LOCAL" >/tmp/ack_out2 2>/tmp/ack_err2
-      rc2=$?
-      [ "$rc2" = 0 ] || fail "fetch 基线失败 rc=$rc2: $(cat /tmp/ack_err2)"
+      ack_fetch "$ACK" "$ACKBASE_TAG:$ACKBASE_LOCAL"; rc2=$?
+      cp -f /tmp/ack_err /tmp/ack_err2 2>/dev/null || true
+      [ "$rc2" = 0 ] || fail "fetch 基线失败（已重试 $ACK_TRIES 次）: $(tail -3 /tmp/ack_err | tr '\n' ' ')"
       errcheck fetch-base /tmp/ack_err2
       BASE=$ACKBASE_LOCAL
     fi
