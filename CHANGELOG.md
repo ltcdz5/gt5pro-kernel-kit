@@ -657,3 +657,19 @@ Unknown symbol hmbird_dir
   后者本树缺失，且整树回移会因 struct 改动造成 CRC 成批漂移 —— 见 §三.7 的通用硬约束）。
 - 厂商模块**开机不自动装载**（设备实测 `dmesg` 里 game_opt/sched_ext 的 modprobe 计数 = 0，opt53 亦然），
   属 ROM 既有行为；验收按 `insmod` 口径。
+
+### 机主授权记录（2026-10-08）
+⚠️ **机主已于 2026-10-08 授权：允许 register scx 调度器**（风险自担）。opt43 先例：整机硬挂死 + PMIC 复位 ⇒ 启用前必须准备好回退（opt54/opt53 镜像在手、在电脑旁、fastboot 可用）；出现异常立即刷回。
+
+### register scx 的启用与回退流程（2026-10-08 机主授权后）
+
+**启用（由机主在 Scene 内操作）**
+1. 前置：手机在电脑旁、fastboot 可用、`images/boot-v1.1-opt54-repacked.img`（md5 cbd8a8297bc0eca55cc66baba571dba0）与 opt53 镜像在手、重要数据已备份。
+2. Scene 里打开该调度功能（写入 `scheduler-status` / `scheduler-func` / `scheduler-refresh` 三键，位于 `shared_prefs/global.xml` 或 `databases/scene3_config`）。
+3. 观察 `cat /sys/kernel/sched_ext/scx_attr_enabled`：由 0 变 1 = 调度器已注册。
+4. 立刻检查：`dmesg | grep -iE "scx|sched_ext|Oops|BUG:"`、设备是否卡顿/重启、`lsmod` 是否正常。
+
+**回退**
+- 正常路径：Scene 里关掉该功能（解除 BPF link）；若界面无响应，重启后在 Scene 内关掉再重启。
+- 异常路径（卡死/循环重启）：长按电源+音量进 **fastboot** ⇒ `fastboot flash boot_a boot-v1.1-opt54-repacked.img` ⇒ `fastboot set_active a` ⇒ `fastboot reboot`；仍异常则刷 opt53（md5 f927d8a259f0fad033e6c9b283066ae7）。详见《救砖与回退-标准流程-20261001.md》。
+- ⚠️ 若 Scene 开机自动启用该功能，回退后要**先在 Scene 里关掉**，否则会再次进入挂死循环。
