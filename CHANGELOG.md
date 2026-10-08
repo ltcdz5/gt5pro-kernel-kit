@@ -146,7 +146,7 @@
 | opt9 | 分支 opt9-clean-upstream | 206914f9 | 09-30 | Oplus ebdd1643c 同步的 13 文件子集（闭包剔除 12 项含 blk-mq.c 的 EXPORT） | ✅ |
 | opt8 | 分支 opt8-upstream-nodelta | 6f55c321（分支未单独提交） | 09-29 | 按「不新增导出 + 闭包裁剪」规则裁出的 13 文件上游同步版（真正进代码 8 个） | ✅ 已上机（见第三节 §5） |
 | opt7-clean | 分支 opt7-clean | d56788d5 | 09-30 | 拆除 builder 注入的 config_fix（不再谎报 IP6_NF_NAT）+ gki_defconfig 去重 + HEADERS_INSTALL 对齐原厂 | ✅ |
-| opt5 | 分支 opt5-state | 6f55c321 | 09-29 | regdb 内嵌（消掉开机 60 秒固件回退等待，87s 降到 26s）+ 799 行干净 defconfig + ltcdz5 后缀 | ✅ |
+| opt5 | 分支 opt5-state | 6f55c321 | 09-29 | regdb 内嵌 + 799 行干净 defconfig + ltcdz5 后缀 | ✅ |
 
 ---
 
