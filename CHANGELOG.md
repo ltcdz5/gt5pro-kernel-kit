@@ -836,3 +836,15 @@ Unknown symbol hmbird_dir
 5. **⑤云控**：`prjname` → 清 `com.oplus.cosa` → `persist.sys.oplus.gameswitch.enable` 0→1（cezai 模块自带）
 
 **红线**：任何让内核"期望某变体"的改动必须同时具备 DT `version_type` 兼容层（`hmbird_fix.patch` 明确记载：类型不匹配 ⇒ **设备无法启动** —— 这是 opt43 硬挂死 + PMIC 复位的机制性解释）。
+
+## 十五、第5步c · 风驰结构体对齐实验（opt59，2026-10-09）
+
+**结论：上一轮"硬阻塞"判断被推翻** —— "加字段向出厂对齐"成立 ✓
+
+- 树内提交 `bb7d854291b7`（opt59，父 `006e434ad3ad` opt58）
+- **`task_is_scx` 自然 CRC = `0xb3071c68` = 厂商期望值** ✓（**无需定点覆写**）
+- `struct sched_ext_entity` **逐字段与出厂一致**（`sched_prop`@168、`top_task_prop`@176、`running_at`@248、`gdsq_idx`@256；sizeof 264=264 ✓）
+- hub 其它导出亦全部对上厂商期望：`hmbird_dir`=0x947ca90f、`non_ext_task`=0xfd0701e9、`__scx_ops_enabled`=0x85f027ab、`iso_masks`=0xcb6a4c44 ✓
+- **唯一剩余结构缺口**：`struct scx_dispatch_q` 缺 `last_consume_at`@80、`is_timeout`@88 ⇒ 正对应块2 未落地的 2 个 `consume_hmbird_global_dsq` 调用点
+- 意义：**向出厂布局对齐不破 493 模块 ABI** ⇒ "全套风驰"架构上可行 ✓
+- 报告：`档案/性能功耗/第5步c-结构体对齐实验-20261009.md`（由 step5c 子代理撰写）
