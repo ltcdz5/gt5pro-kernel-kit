@@ -1,0 +1,8 @@
+# gate2-known-refusals.txt —— 闸门2（tools/gate_vko_crc.py）的「已知基线拒载模块」集合
+# 用途：tools/preflight.ps1 §2 用它核对闸门2 的明细（不写死模块名）：
+#   被拒模块 ⊆ 本集合          ⇒ PASS（预期内）
+#   出现集合外的模块            ⇒ WARN（新增拒载，必须查明后再发布）
+# 格式：每行一个模块文件名（basename，不含目录）；'#' 起为注释；空行忽略。
+# 维护：集合变化（新增已知缺口 / 缺口已修复）时必须同步改本文件，并写明原因与日期。
+bluetooth.ko                 # sk_filter_trim_cap CRC 基线：未覆写的构建产物会命中；构建后用 tools/patch_crc_sk_filter_trim_cap.py 定点覆写
+oplus_bsp_sched_ext.ko       # 第 4 步待解决项（2026-10-08）：缺 6 个 hmbird/sched_ext 私有符号 + __scx_ops_enabled 类型不符

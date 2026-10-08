@@ -150,7 +150,7 @@
 
 ---
 
-## 三、否证与留档：**错误实验的原因**（禁止使用）
+## 三、否证与更正：**错误实验的原因**（禁止使用）
 
 > 这一节回答「**为什么这条路不走了**」。每条都给机制与定案依据，不写「感觉不行」。
 
@@ -162,6 +162,7 @@
 | a2 / a4（判砖实验） | ⛔ 循环开机 | 与 opt6 同机制；a4 单独定罪，a5 免刷 ⇒ include/linux/file.h 无罪 |
 | LSE 外挂模块 | ⛔ 净负面 | 实测 +1.7W 且帧率更差（55.5 vs 64.8） |
 | opt8 | 📦 留档（已上机成功） | 未留独立提交 ⇒ 不可复现；已被 opt9 取代 |
+| 全量模块审计（早期口径） | 🔁 已更正 | 只算 vmlinux 导出 ⇒ 健康版误报 337/493「缺失」；更正口径后 0/493（详见本节 §8）|
 
 ### 1. opt6 / opt6a / opt6a2 —— 全循环开机（机制已定案，非猜测）
 
@@ -313,6 +314,43 @@ boot_progress_start=12.87s），并与 opt9 一起**验证了这条裁剪规则*
 ⇒ genksyms 沿指针类型图递归展开 ⇒ CRC 成批漂移 ⇒ 厂商模块成批拒载。
 上游「大版本特性移植」（BBRv3 / 新版 sched_ext / 风驰 hmbird）在本约束下**不可行**；
 可持续的增量只有 **纯函数体修复 + config 层改动 + 删/禁类改动**。
+
+### 8. 全量模块审计的**口径更正**（2026-10-08；撤回一条被夸大的计数）
+
+**早期口径（错）**：`_audit/audit_all.py` 与初版 `tools/gate_all_modules.py` 把符号全集取成
+**只有 `out/vmlinux.symvers`**（内核导出）。它漏了两块**必然存在**的符号来源：
+
+1. **厂商模块互相导出** —— 随包刷入的 493 个 .ko 自己的 `__ksymtab_strings`
+   （例：`get_hmbird_cpu_exclusive` 就是由 `oplus_bsp_game_opt.ko` 导出、给 `oplus_bsp_sched_ext.ko` 引用的）；
+2. **约 130 个未镜像的原厂模块**（`qcom_ipc_logging` / `smem` / `boot_mode` / `socinfo` / `qcom_scm` …）
+   —— 它们不在 `vendor-ko/` 镜像里，但导出是固定的，必须计入。
+
+⇒ 后果：在**健康版本**上误报 **337/493 模块「缺失」**（假阳性）。
+
+**更正后的口径（现行 `tools/gate_all_modules.py`）**：
+符号全集 = `out/vmlinux.symvers` ∪ 各 .ko 的 `__ksymtab_strings` ∪
+`refs/mod-exports-622mods-4623.txt`（设备 622 个模块的导出并集，4623 条）。
+
+| 对照 | 早期口径（只算 vmlinux） | 更正口径（三者并集） |
+|---|---|---|
+| 健康版 opt53 | **337/493 报「缺失」**（假阳性） | **0/493** |
+| 正对照：去掉 `oplus_bsp_sched_ext.ko` | — | **492/492 全绿**（缺失确实只由它一家贡献） |
+
+**由此修正此前记录中的表述**：opt51（关 KASAN / KFENCE / DEBUG_LIST / SCHED_DEBUG / SCHEDSTATS /
+BUG_ON_DATA_CORRUPTION）与 opt52 的「**493/493 全坏**」属**被夸大**的计数 ——
+493 是“模块总数”，不是“逐模块都真的坏了”。正确表述是**大量模块受影响 + 关键导出消失**：
+
+- `__list_add_valid` / `__list_del_entry_valid` 两个导出**直接消失**（分别有 **132 / 103** 个模块导入它们）；
+- `sk_filter_trim_cap` 的 CRC 从 `0x43b2b8f0` 漂到 `0xe4b963e8`（核心类型布局被改动）。
+
+**结论本身不变**：该配置改动确实破坏 ABI，这 6 项被厂商模块锁死在 ABI 上，**不可关**。
+（§十 里相关措辞已同步改为「大量模块受影响 + 关键导出消失（计数口径见 §三 更正）」。）
+
+**同时记一条新事实（第 4 步的缺口缩小）**：`get_hmbird_cpu_exclusive` **已由
+`oplus_bsp_game_opt.ko` 导出**（实测：该符号在 `oplus_bsp_game_opt.ko` 的 `__ksymtab_strings` 里；
+`oplus_bsp_sched_ext.ko` 只是引用方）⇒ 第 4 步真正还缺的符号是 **6 个**：
+`iso_masks` / `ext_module_loaded` / `task_is_scx` / `scx_get_md_info` / `non_ext_task` / `hmbird_dir`，
+外加 `__scx_ops_enabled` **类型不符**（厂商期望 `0x85f027ab` / 本内核 `0xdbdda96b`）。
 
 ---
 
@@ -486,8 +524,8 @@ boot_progress_start=12.87s），并与 opt9 一起**验证了这条裁剪规则*
 2. 导出 __scx_ops_enabled（kernel/sched/ext.c）。
 
 **关键否证与更正（重要）**
-- **opt51（关 KASAN/KFENCE/DEBUG_LIST/SCHED_DEBUG/SCHEDSTATS/BUG_ON_DATA_CORRUPTION）已被否证**：全量 493 个厂商模块**全部出问题**（__list_add_valid 消失，132 个模块依赖；__list_del_entry_valid 消失，103 个模块依赖；全模块 CRC 漂移）⇒ 这 6 项被厂商模块锁死在 ABI 上，**不可关**。配置已 revert（提交 f569055249de）。
-- **流程坑（记录在案）**：opt51 的破坏性配置**已被提交**，用 git checkout 无法回滚 ⇒ 导致 opt52 是"关掉调试件"的错误构建（493 全坏）；必须用 git revert 才正确。教训：破坏性配置改动不要先提交，或提交后必须 revert。
+- **opt51（关 KASAN/KFENCE/DEBUG_LIST/SCHED_DEBUG/SCHEDSTATS/BUG_ON_DATA_CORRUPTION）已被否证**：**大量模块受影响 + 关键导出消失**（`__list_add_valid` 消失，132 个模块依赖；`__list_del_entry_valid` 消失，103 个模块依赖；`sk_filter_trim_cap` 的 CRC 从 `0x43b2b8f0` 漂到 `0xe4b963e8`）（**计数口径见 §三 更正** —— 早期「493/493 全坏」是被夸大的表述）⇒ 这 6 项被厂商模块锁死在 ABI 上，**不可关**。配置已 revert（提交 f569055249de）。
+- **流程坑（记录在案）**：opt51 的破坏性配置**已被提交**，用 git checkout 无法回滚 ⇒ 导致 opt52 是"关掉调试件"的错误构建（大量模块受影响，计数口径见 §三 更正）；必须用 git revert 才正确。教训：破坏性配置改动不要先提交，或提交后必须 revert。
 
 **oplus_bsp_sched_ext 装载失败的确切缺符号（设备 dmesg 实测）**
 ```
@@ -500,6 +538,9 @@ Unknown symbol scx_get_md_info
 Unknown symbol non_ext_task
 Unknown symbol hmbird_dir
 ```
+
+> 注（2026-10-08 口径更正，见 §三.8）：其中 `get_hmbird_cpu_exclusive` **已由 `oplus_bsp_game_opt.ko` 导出**（本树只是引用方）⇒ **真正还缺的符号 = 6 个**（iso_masks / ext_module_loaded / task_is_scx / scx_get_md_info / non_ext_task / hmbird_dir）+ `__scx_ops_enabled` 类型不符（厂商期望 0x85f027ab / 本内核 0xdbdda96b）。
+
 ⇒ 这些是 **OPPO 自己 sched_ext/hmbird 实现里的数据结构与函数**（不是简单加导出能解决的）⇒ 要让 scx 真正可用，必须**整套回移 OPPO 的 sched_ext + hmbird 私有栈**。这也是"cpufreq 调速器里没有 scx / /sys/kernel/sched_ext 不存在"的根因。
 
 **可用的回移来源（已核实）**

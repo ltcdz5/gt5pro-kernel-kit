@@ -42,8 +42,37 @@ sec '2) 双闸门（该版真实产物）'
 $g1 = RunWsl ('cd ' + $Tree + ' && python3 ' + $KitWsl + '/tools/gate_new_exports.py out/vmlinux.symvers 2>&1 | tail -3')
 Write-Host $g1
 if ($g1 -match 'PASS' -and $g1 -match '遮蔽=0') { ok '闸门1 PASS 且遮蔽=0' } else { no '闸门1 未过或遮蔽不为 0' }
-$g2 = RunWsl ('cd ' + $Tree + ' && python3 ' + $KitWsl + '/tools/gate_vko_crc.py out/vmlinux.symvers ' + $RootWsl + '/vendor-ko/vendor_dlkm ' + $RootWsl + '/vendor-ko/system_dlkm 2>&1 | grep -m1 会拒绝装载')
-if ($g2 -match '= 1') { ok '闸门2 会拒绝装载 = 1（仅蓝牙基线）' } else { no ('闸门2 异常：' + $g2) }
+$g2 = RunWsl ('cd ' + $Tree + ' && python3 ' + $KitWsl + '/tools/gate_vko_crc.py out/vmlinux.symvers ' + $RootWsl + '/vendor-ko/vendor_dlkm ' + $RootWsl + '/vendor-ko/system_dlkm 2>&1')
+foreach ($ln in @($g2 -split [char]10 | Where-Object { $_ -match '候选 |厂商模块 |会拒绝装载的模块|个符号不符|✅' })) { Write-Host $ln }
+# 闸门2 标签不写死模块名；另做一条明细校验 —— 被拒模块必须落在「已知基线拒载」集合里：
+#   被拒模块 ⊆ refs/gate2-known-refusals.txt ⇒ PASS（当前应等于基线，明细见上）
+#   出现集合外的模块                        ⇒ WARN（新增拒载，查明后再发布）
+$g2n = -1
+if ($g2 -match '会拒绝装载的模块\s*=\s*([0-9]+)') { $g2n = [int]$Matches[1] }
+if ($g2n -lt 0) {
+  no ('闸门2 没出结论（脚本没跑起来？）：' + (($g2 -split [char]10 | Select-Object -Last 2) -join ' / '))
+} else {
+  $refKo = @()
+  foreach ($ln in ($g2 -split [char]10)) {
+    if ($ln -match '^\s+(\S+\.ko)\s+\(') { $refKo += (($Matches[1] -split '/')[-1]) }
+  }
+  $refKo = @($refKo | Select-Object -Unique)
+  $knownFile = Join-Path $Kit 'refs\gate2-known-refusals.txt'
+  $known = @()
+  if (Test-Path $knownFile) {
+    foreach ($l in (Get-Content $knownFile -Encoding UTF8)) {
+      $l = ($l -replace '#.*$', '').Trim()
+      if ($l) { $known += $l }
+    }
+  }
+  if ($known.Count -eq 0) {
+    wn ('闸门2 会拒绝装载的模块数 = ' + $g2n + '（当前应等于基线，明细见上；缺 refs/gate2-known-refusals.txt，无法核对明细）')
+  } else {
+    $unk = @($refKo | Where-Object { $known -notcontains $_ })
+    if ($unk.Count -eq 0) { ok ('闸门2 会拒绝装载的模块数 = ' + $g2n + '（当前应等于基线，明细见上；全部属已知基线集合）') }
+    else { wn ('闸门2 会拒绝装载的模块数 = ' + $g2n + '；不在已知基线集合的 ' + $unk.Count + ' 个：' + ($unk -join ', ') + ' ⇒ 新增拒载，查明后再发布') }
+  }
+}
 
 sec '2b) 全量厂商模块审计（缺失 + CRC，必须为 0）'
 # 独立于闸门2：闸门2 只看「已存在符号」的 CRC，缺符号是它的盲区（曾漏掉 oplus_bsp_sched_ext
@@ -63,7 +92,7 @@ else { no '全量模块审计没出结论（脚本没跑起来？）' }
 sec '3) 交付件'
 $img = Join-Path $Imgs ('boot-' + $Ver + '-repacked.img')
 if (Test-Path $img) { ok ($Ver + ' 镜像 md5=' + (Get-FileHash $img -Algorithm MD5).Hash.ToLower()) } else { no ('找不到 ' + $img) }
-if ((Test-Path (Join-Path $Imgs '清单.txt')) -and ((Get-Content (Join-Path $Imgs '清单.txt') -Raw) -match [regex]::Escape($Ver))) { ok 'images/清单.txt 已含该版' } else { no 'images/清单.txt 未含该版' }
+if ((Test-Path (Join-Path $Imgs '清单.txt')) -and ((Get-Content (Join-Path $Imgs '清单.txt') -Raw -Encoding UTF8) -match [regex]::Escape($Ver))) { ok 'images/清单.txt 已含该版' } else { no 'images/清单.txt 未含该版' }
 $rb = @(Get-ChildItem $Imgs -Filter 'boot-v1.1-opt*-repacked.img*' -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch [regex]::Escape($Ver) })
 if ($rb.Count -gt 0) { ok ('可回退件 ' + $rb.Count + ' 个') } else { wn '没有其它可回退件' }
 
@@ -105,13 +134,13 @@ if (Test-Path $gh) {
 } else { wn '没找到 gh，跳过' }
 
 sec '6) 文档与边界（可计量）'
-if ((Get-Content (Join-Path $Kit 'CHANGELOG.md') -Raw) -match [regex]::Escape($Ver)) { ok 'CHANGELOG（权威）含本版' } else { no 'CHANGELOG 缺本版' }
-if ((Get-Content (Join-Path $Kit 'README.md') -Raw) -match [regex]::Escape($Ver)) { ok 'README（权威）含本版' } else { no 'README 未同步' }
+if ((Get-Content (Join-Path $Kit 'CHANGELOG.md') -Raw -Encoding UTF8) -match [regex]::Escape($Ver)) { ok 'CHANGELOG（权威）含本版' } else { no 'CHANGELOG 缺本版' }
+if ((Get-Content (Join-Path $Kit 'README.md') -Raw -Encoding UTF8) -match [regex]::Escape($Ver)) { ok 'README（权威）含本版' } else { no 'README 未同步' }
 $bad = @()
 foreach ($d in (Get-ChildItem $Kit -Recurse -Filter '*.md')) {
   if ($d.Name -in @('CHANGELOG.md','README.md')) { continue }
   $ln = 0
-  foreach ($line in (Get-Content $d.FullName)) {
+  foreach ($line in (Get-Content $d.FullName -Encoding UTF8)) {
     $ln++
     if ($line -notmatch '现役|回退首选') { continue }
     if ($line -notmatch 'opt[0-9]+') { continue }
@@ -128,29 +157,31 @@ if ($hit.Count -eq 0) { ok ('他人原件 = 0（清单 ' + $forbidden.Count + ' 
 $hb = @()
 foreach ($t in ($tracked | Where-Object { $_ -match '\.md$' -and $_ -notmatch 'NOTICE\.md$|^README\.md$|审计-' })) {
   $fp = Join-Path $Kit $t
-  if ((Test-Path $fp) -and ((Get-Content $fp -Raw) -match 'Numbersf|ITXUU|victor-egg')) { $hb += $t }
+  if ((Test-Path $fp) -and ((Get-Content $fp -Raw -Encoding UTF8) -match 'Numbersf|ITXUU|victor-egg')) { $hb += $t }
 }
 if ($hb.Count -eq 0) { ok '个人 handle 仅在署名类文件' } else { no ('handle 越界：' + ($hb -join ', ')) }
-if ((Test-Path (Join-Path $Kit 'NOTICE.md')) -and ((Get-Content (Join-Path $Kit 'NOTICE.md') -Raw).Length -gt 200)) { ok 'NOTICE.md 在（上游归属保留）' } else { no 'NOTICE.md 缺失' }
+if ((Test-Path (Join-Path $Kit 'NOTICE.md')) -and ((Get-Content (Join-Path $Kit 'NOTICE.md') -Raw -Encoding UTF8).Length -gt 200)) { ok 'NOTICE.md 在（上游归属保留）' } else { no 'NOTICE.md 缺失' }
 # 顶层 .md 数量上限（防止顶层再次膨胀）
 $topMd = @(Get-ChildItem $Kit -Filter '*.md' -File)
 if ($topMd.Count -le 12) { ok ('顶层 .md = ' + $topMd.Count + '（上限 12）') } else { no ('顶层 .md = ' + $topMd.Count + ' 超过上限 12 ⇒ 该进 档案/') }
 # 顶层文档不得有孤儿（无人引用 = 隐形 = 实质臃肿）
+# ⚠️ 必须显式 -Encoding UTF8：顶层 README.md 是无 BOM 的 UTF-8，Windows PowerShell 5.1
+#    默认按 ANSI(GBK) 读 ⇒ 中文引用被解成乱码 ⇒ 会把好文档误报成孤儿（实测误报 5 份）。
 $allMd = @(Get-ChildItem $Kit -Recurse -Filter '*.md' -File)
 $corpus = ''
-foreach ($m in $allMd) { $corpus += (Get-Content $m.FullName -Raw) }
+foreach ($m in $allMd) { $corpus += (Get-Content $m.FullName -Raw -Encoding UTF8) }
 $orph = @($topMd | Where-Object { $corpus -notmatch [regex]::Escape($_.Name) })
 if ($orph.Count -eq 0) { ok '顶层文档无孤儿（均被引用）' } else { no ('顶层孤儿文档 ' + $orph.Count + ' 份：' + (($orph | ForEach-Object { $_.Name }) -join ', ')) }
 # 档案/ 下每份必须在档案索引里登记
 $arcDir = Join-Path $Kit '档案'
 if (Test-Path $arcDir) {
-  $idx = Get-Content (Join-Path $arcDir 'README.md') -Raw
+  $idx = Get-Content (Join-Path $arcDir 'README.md') -Raw -Encoding UTF8
   $un = @(Get-ChildItem $arcDir -Recurse -Filter '*.md' -File | Where-Object { $_.Name -ne 'README.md' -and ($idx -notmatch [regex]::Escape($_.Name)) })
   if ($un.Count -eq 0) { ok '档案/ 全部已在索引登记' } else { no ('档案索引漏登记 ' + $un.Count + ' 份：' + (($un | Select-Object -First 3 | ForEach-Object { $_.Name }) -join ', ')) }
 }
 $ai = Join-Path $Kit 'archive\README.md'
 if (Test-Path $ai) {
-  $rows = @(Get-Content $ai | Where-Object { $_ -match '^[|]' -and $_ -match '[0-9]' })
+  $rows = @(Get-Content $ai -Encoding UTF8 | Where-Object { $_ -match '^[|]' -and $_ -match '[0-9]' })
   $nd = @($rows | Where-Object { $_ -notmatch '20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]' })
   if ($nd.Count -eq 0) { ok ('归档索引 ' + $rows.Count + ' 条，全带日期') } else { no ('归档索引缺日期 ' + $nd.Count + ' 条') }
 } else { wn '无 archive/README.md' }

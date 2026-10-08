@@ -15,20 +15,20 @@
 
 | 项 | 值 |
 |---|---|
-| 现役版本 | `6.1.141-android14-11-o-ltcdz5-v1.1-opt49`（蓝牙修复版）|
-| 现役镜像 | `boot-v1.1-opt49-crc-repacked.img`，md5 `c40ee988904f2ea29720b0100b0ad124` |
-| **AK3** | `GT5Pro-RMX3888-v1.1-opt49-crc-AK3.zip`，md5 `13966f4df5e14c6289b4aff60b4380d9`（内含附加模块自动安装）|
-| 回退首选 | `boot-v1.1-opt49-repacked.img`（md5 `f285f54b2af95af56677d96f96f1b377`）|
+| 现役版本 | `6.1.141-android14-11-o-ltcdz5-v1.1-opt53`（hmbird 钩子回移 + sched_ext 缺符号定案）|
+| 现役镜像 | `boot-v1.1-opt53-repacked.img`，md5 `f927d8a259f0fad033e6c9b283066ae7` |
+| **AK3** | `GT5Pro-RMX3888-v1.1-opt50-AK3.zip`，md5 `fd82842d7ff857b756494a0846940407`（最近一版 AK3，opt53 无 AK3；内含附加模块自动安装）|
+| 回退首选 | `boot-v1.1-opt50-repacked.img`（md5 `4a2829cf415756107d3785157e7289cd`）|
 | 台账（权威） | [CHANGELOG.md](CHANGELOG.md) §一 发布记录 |
 
 ## 快速开始
 
-**刷机（推荐 AK3）**：把 `GT5Pro-RMX3888-v1.1-opt49-crc-AK3.zip` 丢进 KernelSU/Magisk 管理器刷入 ——
+**刷机（推荐 AK3）**：把 `GT5Pro-RMX3888-v1.1-opt50-AK3.zip` 丢进 KernelSU/Magisk 管理器刷入 ——
 自动刷内核 + 自动安装附加模块（`horae_once`、`quiet_logs`）✓
 
 **刷机（fastboot，只刷 boot_a）**：
 ```sh
-fastboot flash boot_a boot-v1.1-opt49-crc-repacked.img
+fastboot flash boot_a boot-v1.1-opt53-repacked.img
 fastboot set_active a        # 必须！fastboot flash 会切槽
 fastboot reboot
 ```

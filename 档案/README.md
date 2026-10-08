@@ -56,6 +56,9 @@
 | 性能功耗 | 档案/性能功耗/抖音功耗对照-口径与步骤-20261001.md | 2026-10-01 | 未结案项：**同一台机器、同一个 app（抖音）的功率读数差了 +36%，未归因。** |
 | 性能功耗 | 档案/性能功耗/抖音功耗异常-根因定位与结案-20261004.md | 2026-10-04 | 结论：**根因是 2026-10-03 18:24 的 Scene 版本更新**，与内核改动**无关** |
 | 性能功耗 | 档案/性能功耗/离线功耗采集-方法修正-20261004.md | 2026-10-04 | 关键设计：脚本会在**检测到「拔线」与「插回」的时刻各打一次完整的 `wakeup_sources` 快照** |
+| 性能功耗 | 档案/性能功耗/opt51-否证-关闭调试件不可行-20261008.md | 2026-10-08 | **不可行（硬拦）**：`__list_add_valid` / `__list_del_entry_valid` 两个导出直接消失（分别有 132 / 103 个模块导入）、大量模块 CRC 不符（原记「493/493」的计数口径见 CHANGELOG §三 更正）。|
+| 性能功耗 | 档案/性能功耗/配置对照-stock-vs-opt49-20261008.md | 2026-10-08 | 出厂 config（6036 项）与 opt49（6111 项）三态全量对照：KASAN / KASAN_HW_TAGS / KFENCE / DEBUG_LIST / SCHED_DEBUG 等与出厂逐项一致 ⇒ 非本项目引入。|
+| 性能功耗 | 档案/性能功耗/第4步-sched_ext回移-交接说明-20261008.md | 2026-10-08 | 目标：让 oplus_bsp_sched_ext.ko 能装载且 /sys/kernel/sched_ext 出现；缺符号（dmesg 实测）iso_masks / ext_module_loaded / get_hmbird_cpu_exclusive / task_is_scx / scx_get_md_info / non_ext_task / hmbird_dir + __scx_ops_enabled 类型不符。|
 | 版本核验 | 档案/版本核验/opt37-soak核验与config对账-20261003.md | 2026-10-03 | 子代理最担心的那条是：「opt37 只改了 `gki_defconfig`（进 git）+ `out/.config`（**不进 git |
 | 版本核验 | 档案/版本核验/v1.0-opt38-上机核验与第三条判据-20261003.md | 2026-10-03 | 结论**：opt38 的四项里，**两项真可达、两项"正确但走不到"**。 |
 | 版本核验 | 档案/版本核验/v1.0-opt38-计划-20261003.md | 2026-10-03 | opt40~49 → v1.1 ★ 机主指定：到 40 换 v1.1 |
@@ -86,3 +89,8 @@
 | 闸门与ABI | 档案/闸门与ABI/可改动面与边界-修正-20261004.md | 2026-10-04 | 用 v3/v4 头布局解析，并以 `kernel_size` 自校验（注意：**用 v2 偏移解 v4 头会读出假的 dtb_size* |
 | 闸门与ABI | 档案/闸门与ABI/审核-opt37到opt42代码审核-20261004.md | 2026-10-04 | 审核对象：真我 GT5 Pro（RMX3888 / SM8650 / Android 16 / GKI 6.1.141） |
 | 闸门与ABI | 档案/闸门与ABI/闸门0-类型级预检-20261004.md | 2026-10-04 | 本机已具备 **libabigail**（abidw/abidiff 2.4.0）与 pahole 1.25；我们的 `out/vmli |
+| 内核审核-20261007 | 档案/内核审核-20261007/内核审核-总报告-20261007.md | 2026-10-07 | **P1 · 已确证：整个蓝牙子系统被拒载**（opt47 上 7 个蓝牙家族模块每次开机装载失败，根因 sk_filter_trim_cap CRC 0xf5845708 ≠ 0x43b2b8f0）；另有 oplus_bsp_game_opt 缺 5 个 __tracepoint_android_vh_scx_* 拒载。|
+| 内核审核-20261007 | 档案/内核审核-20261007/内核审核-A-存储与内存.md | 2026-10-07 | **P2：opt15-P32 对 f2fs 压缩 log_cluster_size 的上界收紧漏掉 sysfs 入口**（写 8 ⇒ 内核栈越界写约 1KB，需 root 主动写）；opt9 的 VM_FAULT_RETRY_VMA 无 FAULT_FLAG_TRIED 闸门（潜在自旋）。|
+| 内核审核-20261007 | 档案/内核审核-20261007/内核审核-B-调度功耗热.md | 2026-10-07 | **P2 · 待实测：pm_wq 去掉 WQ_FREEZABLE**（kernel/power/main.c:920，实为上游两次改动的配套回移，非解冲突失误）——落在待机耗电主路径，须与上一版对比后定论。|
+| 内核审核-20261007 | 档案/内核审核-20261007/内核审核-C-网络外设安全.md | 2026-10-07 | **P3（未发现 P0/P1/P2）：Baseband-guard（CONFIG_BBG=y）不是掉基带/IMS/VoNR 风险源** —— 拦截钩子先判 current_process_trusted() 即返回。|
+| 内核审核-20261007 | 档案/内核审核-20261007/内核审核-D-配置ABI变砖.md | 2026-10-07 | **P1 · 实机已复现：bluetooth.ko 因 modversions CRC 漂移被拒载**（sk_filter_trim_cap 0xf5845708 vs 0x43b2b8f0），自 opt12 起一直存在；CONFIG_HZ 250→300 的失配待反汇编补证。|

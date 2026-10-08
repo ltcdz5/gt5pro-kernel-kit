@@ -23,6 +23,13 @@ OUT=/mnt/c/Users/xutengfa/Desktop/gt5pro-kernel/images/清单.txt
   echo "=== 子目录 ==="
   for d in */; do [ -d "$d" ] && printf "%12s  (目录)  %s\n" "$(du -sb "$d" | cut -f1)" "$d"; done
   echo
+  echo "=== 上级目录裸 Image（../Image.*；构建产物，供核对）==="
+  echo "# ⚠️ Image.opt51 / Image.opt52 是已否证的构建（见 CHANGELOG §三/§十），不可刷"
+  for f in ../Image.*; do
+    [ -f "$f" ] || continue
+    printf "%12s  %s  %s\n" "$(stat -c %s "$f")" "$(md5sum "$f" | cut -c1-32)" "$(basename "$f")"
+  done
+  echo
   echo "=== 合计 ==="
   du -sh . | cut -f1
 } > "$OUT"
