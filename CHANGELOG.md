@@ -860,3 +860,17 @@ Unknown symbol hmbird_dir
 4. **必核**：127 条 CRC 全对齐（名字对、CRC 错同样装载失败 ✗）
 5. **已满足**：`scx_get_md_info` 非 NULL（否则 `hmbird_misc_init` BUG() ✓）、`iso_masks` 裸偏移不可改 ✓、9 条钩子已导出 ✓
 6. **已降级**：DT `version_type` 兼容层（实机 `.ko` 已无该闸门 ✓）；`/sys/kernel/sched_ext/enabled` 恒 0 属正常 ✓
+
+## 十七、第7步 · 真机验证（opt60）：风驰接口层打通（2026-10-09）
+
+**结论：接口层 100% 打通；厂商模块装载并初始化；`scx_enable=1` 不挂死；调度器尚未真正生效。**
+
+- opt60 四步（`scx_dispatch_q` 补字段 / 裁到出厂半套 / `CONFIG_HMBIRD_SCHED=y` / DT 兼容层）全部落地，三关全绿，**导出集 15,489 逐名未变**（开关会让 `slim_dir` 多一个导出 ⇒ 已删该导出）
+- **真机实测（boot md5 `5fd7909866e0de04b8e46cd9b388cc2e`）**：
+  - `/proc/hmbird_sched` 出现，**21 条**（出厂内核半套）⇒ **"装载成功但无节点"的根因（`hmbird_dir` 未赋值）修复验证通过** ✅
+  - 按依赖序装载三模块 rc=0；装载后 **27 条**（+6 模块侧）；`[scx_gov][scx_cpufreq_init] num_cluster=4` 正常初始化 ✅
+  - DT 兼容层按设计**安全降级**（无 `/soc/oplus,hmbird` 节点 ⇒ UNKNOWN ⇒ 不 panic/BUG）✅
+  - `echo 1 > /proc/hmbird_sched/scx_enable` ⇒ rc=0、**系统未挂死**（uptime 持续增长、轻负载测试通过）✅ —— **opt43 的硬挂死未复现**
+  - 但 `scx_enable` 回读 0、`<hmbird_sched>` 计数 0 ⇒ **调度未真正生效**，指向 fork 核心（`gdsqs`/`pcp`/`partial`）未搬入
+- 两条 WARNING（2.0 s `proc_register` 重复、86.7 s `tracepoint_add_func`，`Comm: autochmod.sh`）归因为**厂商模块重复注册** ✅ 与本轮改动无关
+- 报告：`档案/性能功耗/第7步-真机验证-opt60-20261009.md`
