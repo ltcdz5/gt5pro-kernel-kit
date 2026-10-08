@@ -137,7 +137,9 @@ sec '6) 文档与边界（可计量）'
 if ((Get-Content (Join-Path $Kit 'CHANGELOG.md') -Raw -Encoding UTF8) -match [regex]::Escape($Ver)) { ok 'CHANGELOG（权威）含本版' } else { no 'CHANGELOG 缺本版' }
 if ((Get-Content (Join-Path $Kit 'README.md') -Raw -Encoding UTF8) -match [regex]::Escape($Ver)) { ok 'README（权威）含本版' } else { no 'README 未同步' }
 $bad = @()
-foreach ($d in (Get-ChildItem $Kit -Recurse -Filter '*.md')) {
+# 只扫「常青」顶层文档（README.md 文档地图的约定：顶层只留常青入口，历史记录全在 档案/）；
+# 历史/技能/实验目录里的「现役」是写作当时的记录，不算冲突。
+foreach ($d in (Get-ChildItem $Kit -Filter '*.md' -File)) {
   if ($d.Name -in @('CHANGELOG.md','README.md')) { continue }
   $ln = 0
   foreach ($line in (Get-Content $d.FullName -Encoding UTF8)) {
