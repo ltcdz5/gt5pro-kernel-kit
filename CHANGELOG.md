@@ -791,3 +791,10 @@ Unknown symbol hmbird_dir
 
 > 内核树 `kernel_workspace/common` 本轮提交 `9254c552d5f8`（tag opt55）**仅本地，未推** —— 与 opt54（`5fa4dc9c`）同样处理。
 > 本轮 **未刷机**：三关证据已交，按安全线等确认。
+
+### 授权收紧（2026-10-08 20:0x，因一次系统级死机）
+
+- 当日曾记录「机主授权允许 register scx 调度器」。**同日 20:0x 设备发生一次系统级死机并由看门狗重启**：`ro.boot.bootreason=reboot`、`/sys/fs/pstore` 为空（无内核 panic 留痕）、重启后 `/sys/kernel/sched_ext/enabled=0`（无调度器在跑）、dmesg 有 `kick-init-watchdog`/`[OPLUS_WD] WatchDog`。
+- ⇒ **授权收紧为「受控实验」**：仅在明确实验窗口、且在电脑旁备好 fastboot 与 **opt53 断路器镜像**（opt53 无 `/sys/kernel/sched_ext`，任何 scx 都无法注册）时方可尝试；**日常使用禁止 register scx**。
+- **更正**：本内核 `/sys/kernel/sched_ext` 只有只读 `enabled`/`switched_all`，**没有** `scx_attr_enabled` 这个属性（此前记录有误）。
+- **新增线索**：酷安模块 `Thread_Editor`（n1.6Alpha）通过 KernelSU WebUI 的 `ksu.exec` 直接改写 Scene 的两个文件：`/data/user/0/com.omarea.vtools/files/threads.json` 与 `threads_auto.json`；其自述「sched_ext 尚在试验阶段，当前仅支持 Linux Kernel 6.12」⇒ 本机 6.1 属支持范围外。该模块**无 service.sh（不开机自动执行）**，但 Scene 会在运行时套用这两个文件 ⇒ 若配置异常可致系统挂起。
