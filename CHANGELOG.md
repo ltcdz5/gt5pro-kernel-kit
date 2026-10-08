@@ -824,3 +824,15 @@ Unknown symbol hmbird_dir
 **顺带确认（操作层面）**
 - 本地那两份补丁是 **CRLF 污染副本**，直接用会假失败；归一化副本在 lab `2026-10-08/scx-step4d/norm/`。
 - **WSL 侧 git push 会永久挂死**（remote 指向 `gh-proxy.com`，gh 凭据助手只认 `host=github.com` ⇒ 无凭据 ⇒ 转交互提示）；`gh-proxy.com` 还是只读代理。⇒ **一律用 Windows 侧 git 推送**（remote 直连 github.com，已验证）。本轮已清理 4 个挂死进程 + 1 个遗留 8 小时的 `opt48` 推送。
+
+## 十四、风驰完整配方与五层状态（2026-10-09）
+
+新增文档 `档案/性能功耗/风驰-完整配方与五层状态-20261009.md`，把"全套可用风驰"拆成 5 层并逐层给出证据与验收：
+
+1. **①DTBO 节点**：SM8650 的正确类型是 **`HMBIRD_OGKI`**（**更正**此前据 `hmbird_fix.patch` 推测的 `HMBIRD_GKI`）；我们设备 DT 里**没有该节点** ⇒ 需写 DTBO（`murongruyan/cezai-hmbird-ko`）或内核侧兼容层
+2. **②内核侧**：OGKI 形态（ferstar `common-source@scx` = `392b985b…`）—— 块3+块7 已落 opt57，块1+块2 进行中
+3. **③厂商模块**：`oplus_bsp_sched_ext.ko` 可装载；还缺 2 个符号 `register_hmbird_sched_ops`/`test_task_is_hmbird`（在我们树 `sched_assist/sa_hmbird.c`，被两道 config 闸门挡住 ⇒ 块13）
+4. **④控制器**：`reigadegr/hmbird_controller` 按前台应用写 **`scx_enable=1`**（开关名已确认）
+5. **⑤云控**：`prjname` → 清 `com.oplus.cosa` → `persist.sys.oplus.gameswitch.enable` 0→1（cezai 模块自带）
+
+**红线**：任何让内核"期望某变体"的改动必须同时具备 DT `version_type` 兼容层（`hmbird_fix.patch` 明确记载：类型不匹配 ⇒ **设备无法启动** —— 这是 opt43 硬挂死 + PMIC 复位的机制性解释）。
