@@ -432,4 +432,16 @@ boot_progress_start=12.87s），并与 opt9 一起**验证了这条裁剪规则*
 - **外围模块**：horae 常驻改为独立新模块 `horae_once`（开机一次性，无双守护/无轮询，实测 `已就绪 pid=9382`）；IMS_VAROS 的 horae 冲突与 extreme_gt 的 `=0` 互斥关系已记录；AOD 模块 `com.op.aod.enhance` 升到官方 v1.5（旧 v1.3 备份留档），`com.tlsu.fullaod` 已卸载。
 - **opt49（已构建待刷；镜像 md5 f285f54b2af95af56677d96f96f1b377 / 201,326,592 B）**：保留 NTFS3_FS(+LZX_XPRESS)、SQUASHFS(+XZ)、CIFS；**撤掉 MODULE_FORCE_LOAD 与 KSM** —— 闸门2 实测这两项会改核心结构布局（struct module / struct mm_struct）⇒ 厂商模块 modversions CRC 全数失效（实测 621 个全不匹配），「改结构 = 砖」被闸门拦下；另定案厂商源码缺陷：net/l2tp/l2tp_core.c 调用全树无定义的 l2tp_session_inc_refcount（modpost undefined）⇒ defconfig 显式 # CONFIG_L2TP is not set / # CONFIG_PPPOL2TP is not set（运行时由厂商 l2tp_core.ko / l2tp_ppp.ko 提供）。闸门结果：**闸门2 = 仅 bluetooth.ko 不匹配（非蓝牙拒载 0）**；**闸门1（替代法）= 候选 15443 / 基线 15437 ⇒ 新增 6、消失 0、无遮蔽**（cifs_arc4_* / cifs_md4_* / dns_query，全部来自 CIFS+DNS_RESOLVER，均未被厂商模块导出）。
 
+## 八、v1.1-opt49-crc（现役；蓝牙修复版）
+
+| 项 | 值 |
+|---|---|
+| 版本串 | 6.1.141-android14-11-o-ltcdz5-v1.1-opt49（内核版本串不变，仅覆写 1 个 CRC 值） |
+| 镜像 | boot-v1.1-opt49-crc-repacked.img，md5 c40ee988904f2ea29720b0100b0ad124（201,326,592 B） |
+| 回退首选 | boot-v1.1-opt49-repacked.img，md5 f285f54b2af95af56677d96f96f1b377 |
+| 做法 | 构建后用 `tools/patch_crc_sk_filter_trim_cap.py` 把内核 `__kcrctab` 里 `sk_filter_trim_cap` 的值 0x43b2b8f0 → 0xf5845708（镜像内该值唯一出现 ⇒ 定点、4 字节、可审计） |
+| 依据（为何不是盲改） | ① 从出厂 `boot_a.img` 抠出的 BTF 与我们的 BTF 逐块对比：`struct sk_buff`(221/221)、`struct sock`(142/142)、`struct sock_common`(70/70) **完全一致**；② 出厂镜像内 `0xf5845708` 唯一出现（0x161b8d8），我们的镜像内 `0x43b2b8f0` 唯一出现；③ 闸门2 显示 `bluetooth.ko` 除该符号外其余 96 个符号全部匹配 ⇒ **无真实 ABI 差异** |
+| 排除的歧路 | 垫片说（`#ifdef __GENKSYMS__` 去掉后 CRC 变成 0xe69729c9，仍不等于期望值 ⇒ 不是它，已还原）；结构体说（BTF 证明布局一致） |
+| 上机核验（2026-10-08 16:4x） | `bluetooth/hci_uart/btqca/btbcm/rfcomm/hidp/btsdio` **全部装载**；`sk_filter_trim_cap` 告警 **0**；`disagrees about version` 总数 **0**（原为 4）；`Unknown symbol` 4（只剩 gameopt 的 scx hook，已知）；oops/BUG/panic 0；**蓝牙 `state: ON`、`enabled: true`、地址已出** |
+| ⚠️ 判据更新 | 「模块装载数 = 621」→ **628**（修复带来的新增装载，属预期增益）；「disagrees about version = 0」现在是**真 0**（原基线含蓝牙那 4 条） |
 
