@@ -424,12 +424,8 @@ boot_progress_start=12.87s），并与 opt9 一起**验证了这条裁剪规则*
 
 ---
 
-## 七、2026-10-08 运行期排查（并入本节，待观察期结束再整理）
 
-- **系统侧崩溃聚类（/data/tombstones，32 份）**：LuckyTool `libdexkit.so` ≈15 次（`com.oplus.battery` 7 / `settings` 4 / `ota` 2 / 闹钟 1，集中在 10-06 22:16–22:29）；**高通相机 HAL 11 次**（10 次是 `binderDied` 自杀式重启、2 次 `couldn't find an OpenGL ES implementation`）；**SurfaceFlinger 4 次**（同一 PC：`libgui.so BufferQueueConsumer::acquireBuffer` ← `FramebufferSurface::advanceFrame`，2×SIGILL + 2×SIGSEGV）；`.qtidataservices` 2 次（关机阶段 `libWlanServiceJni.so handleServiceDeath`，属关机副产物）。**近 24 h 仅 1 次且为关机副产物**。
-- **相关性**：10-05 21:29:58 / 21:50:32 两次 SF 崩溃后 **5 秒**相机 provider 即 `binderDied` abort ⇒ 相机 HAL 崩溃是 SF 崩溃的下游。SF 崩溃首帧落在 `<unknown>`/匿名映射（函数指针被破坏）；**无任何模块替换 `libgui.so`/skia/vulkan**，但设备被 `android-skia-vulkan v2.2` 设为 `debug.hwui.renderer=skiavk` + `debug.renderengine.backend=skiavkthreaded`（首要嫌疑，待停用验证）。
-- **LTPO/1 Hz 定案**：`min_fps` 卡 120 的**根因 = 刷新率配置模板**（原厂 20250522 自带 `ambient*`/`lock_rate*` ⇒ 对亮度变化敏感）+ **亮度变化期间的 `setBrightnessBlockedRefreshRate`/`isStateReady 0`**；20240925 模板（不含上述两块）在自动亮度开着时稳定 `min_fps=1`（内核侧 `sa_min_fps:1` 同步）。**方法学更正**：`action.sh` 的 bind-mount 热切换**只换文件**，system_server/内核不重读 ⇒ 配置对比必须逐版重启。
-- **外围模块**：horae 常驻改为独立新模块 `horae_once`（开机一次性，无双守护/无轮询，实测 `已就绪 pid=9382`）；IMS_VAROS 的 horae 冲突与 extreme_gt 的 `=0` 互斥关系已记录；AOD 模块 `com.op.aod.enhance` 升到官方 v1.5（旧 v1.3 备份留档），`com.tlsu.fullaod` 已卸载。
+
 - **opt49（已构建待刷；镜像 md5 f285f54b2af95af56677d96f96f1b377 / 201,326,592 B）**：保留 NTFS3_FS(+LZX_XPRESS)、SQUASHFS(+XZ)、CIFS；**撤掉 MODULE_FORCE_LOAD 与 KSM** —— 闸门2 实测这两项会改核心结构布局（struct module / struct mm_struct）⇒ 厂商模块 modversions CRC 全数失效（实测 621 个全不匹配），「改结构 = 砖」被闸门拦下；另定案厂商源码缺陷：net/l2tp/l2tp_core.c 调用全树无定义的 l2tp_session_inc_refcount（modpost undefined）⇒ defconfig 显式 # CONFIG_L2TP is not set / # CONFIG_PPPOL2TP is not set（运行时由厂商 l2tp_core.ko / l2tp_ppp.ko 提供）。闸门结果：**闸门2 = 仅 bluetooth.ko 不匹配（非蓝牙拒载 0）**；**闸门1（替代法）= 候选 15443 / 基线 15437 ⇒ 新增 6、消失 0、无遮蔽**（cifs_arc4_* / cifs_md4_* / dns_query，全部来自 CIFS+DNS_RESOLVER，均未被厂商模块导出）。
 
 ## 八、v1.1-opt49-crc（现役；蓝牙修复版）
