@@ -849,3 +849,14 @@ Unknown symbol hmbird_dir
 4. **字段对照**：struct sched_ext_entity 出厂 264 B/23 成员 → opt59 **264 B/23、偏移全一致**（新增 sched_prop@168、top_task_prop@176、running_at@248、gdsq_idx@256、dsq_sync_ux@260）；task_struct 出厂 195 字段 scx@3608 → opt59 **195 字段 @3608** ✓；scx_sched_task_stats 64 B 一致 ✓
 5. **遗留**：struct scx_dispatch_q 缺 last_consume_at@80 / is_timeout@88（出厂 96 B vs 本树 80 B）—— **不影响 CRC**，补它零风险，且是解锁块2 那两个 consume_hmbird_global_dsq 调用点的前提
 6. 提交：树 bb7d854291b7（opt59）；kit 436ced6（子代理报告）+ eef415a（错误版，本提交更正）；lab 3fd95d4/78452de。报告 档案/性能功耗/第5步c-结构体对齐实验-20261009.md
+
+## 十六、风驰实机可用 · 最小修复清单（2026-10-09）
+
+新增 `档案/性能功耗/风驰实机可用-最小修复清单-20261009.md`，依据实机 `.ko` 契约（126 符号/31 节点/9 钩子）：
+
+1. **必修**：`hmbird_dir` 只导出未赋值（`hmbird_export.c` 导出、`hmbird_sched_proc_main.c` 里是局部变量 ✗）⇒ 全局恒 NULL ⇒ 模块条目落到 `/proc` 根而非 `/proc/hmbird_sched` ✗ —— **这就是"装载成功但无节点"的根因** ✓（一行修复：把 `proc_mkdir` 返回值赋给全局）
+2. **必查**：`register_hmbird_sched_ops`（实机模块唯一注册入口）；设备实测该符号已由在载的 `oplus_bsp_sched_assist` 提供 ⇒ **内核侧不要重复导出**（遮蔽风险 ✗）
+3. **必做**：开关打开后条目集与实机契约对齐（内核侧 3 目录 31 条 / 0666），**不得与模块侧重叠** ✗
+4. **必核**：127 条 CRC 全对齐（名字对、CRC 错同样装载失败 ✗）
+5. **已满足**：`scx_get_md_info` 非 NULL（否则 `hmbird_misc_init` BUG() ✓）、`iso_masks` 裸偏移不可改 ✓、9 条钩子已导出 ✓
+6. **已降级**：DT `version_type` 兼容层（实机 `.ko` 已无该闸门 ✓）；`/sys/kernel/sched_ext/enabled` 恒 0 属正常 ✓
