@@ -96,8 +96,8 @@ description: 接手真我 GT5 Pro（RMX3888 / RE5C37 / SM8650 "pineapple" / Andr
 > 实测：`uname -r` 改了、`lsmod` 仍 621 ⇒ 版本串在 `same_magic()` 里被跳过（有 `__versions` 时），
 > 不影响厂商模块 CRC。⛔ 但每次改版本串后仍必须实测 `lsmod` 不减少（opt54 实测 = **628**）。
 | KSU 模块（我们的） | `lru_gen_on` **v3**（开机后恢复 MGLRU=Y + min_ttl 1000）、 |
-| 闸门（最终，**三关**） | 闸门1 `新增=9 消失=0`、命中厂商 `新增=6 消失=0`、**遮蔽=0** ⇒ **PASS**；闸门2 会拒绝装载 **= 0**；**全量 493 模块审计 PASS**（缺失=0 / CRC不符=0；符号全集 = **21116** = 内核 ∪ 厂商模块 ∪ 外部参考）|
-| 刷后基线 | **`lsmod` 628**；`Unknown symbol` **0**；`disagrees` **0**（opt49-crc 起蓝牙 `sk_filter_trim_cap` 已定点覆写抹平）；**真 oops 0**；`Oops/BUG:/Kernel panic` **0**；`pstore` 0；**SSG `[ssg]`**；蓝牙 `state ON`/`crashed 0`；`WARNING` **17 条**（全属厂商模块 modprobe 重复注册）|
+| 闸门（最终，**三关**） | 闸门1 `新增=9 消失=0`、命中厂商 `新增=6 消失=0`、**遮蔽=0** ⇒ 硬判据满足，但**脚本按原始判据给 `rc=1`**（那 6 条是本版**刻意**补的强引用，是模块能装载的前提，见 CHANGELOG §十一）；闸门2 会拒绝装载 **= 0**；**全量 493 模块审计 PASS**（缺失=0 / CRC不符=0；符号全集 = **21116** = 内核 ∪ 厂商模块 ∪ 外部参考）|
+| 刷后基线 | **`lsmod` 628**（验收时；2026-10-08 preflight 复测 = **629**，按需装载波动）；`Unknown symbol` **0**；`disagrees` **0**（opt49-crc 起蓝牙 `sk_filter_trim_cap` 已定点覆写抹平）；**真 oops 0**；`Oops/BUG:/Kernel panic` **0**；`pstore` 0；**SSG `[ssg]`**；蓝牙 `state ON`/`crashed 0`；`WARNING` **17 条**（全属厂商模块 modprobe 重复注册）|
 | 镜像与模块包 | 逐文件大小 + md5 见 `images/清单.txt` |
 
 ⚠️ **⛔ 别刷 `boot-opt15-p13-repacked.img`**：那一版 `/proc/loadavg` 爆到 1.7e10（P16 已修）。

@@ -604,13 +604,20 @@ Unknown symbol hmbird_dir
   `Unknown symbol ... (err -2)`）。且**全量 493 个 .ko 扫描证明只有 `oplus_bsp_sched_ext.ko` 引用这 7 个名字**
   ⇒ 导出它们不会翻动任何别的模块的守卫，不存在 opt6 式活锁面。
 
-**闸门（刷机前三关全过）**
+**闸门（刷机前三关的结论）**
 
 | 闸门 | 命令 | 结果 |
 |---|---|---|
-| 全量 493 模块审计 | `python3 _audit/audit_all.py`（= kit `gate_all_modules.py` + `--extra-exports refs/mod-exports-622mods-4623.txt`） | **PASS**：解析 493 个模块，有问题 = 0（缺失=0 / CRC不符=0）；符号全集 = 21116（内核 ∪ 厂商模块 ∪ 外部参考） |
-| 闸门1 导出对账 | `gate_new_exports.py out/vmlinux.symvers` | 新增=9 消失=0 ｜ **遮蔽=0** ｜ 命中厂商新增=6（= 本次刻意补的强引用，见上） |
+| 全量 493 模块审计（闸门3） | `python3 _audit/audit_all.py`（= kit `gate_all_modules.py` + `--extra-exports refs/mod-exports-622mods-4623.txt`） | **PASS**：解析 493 个模块，有问题 = 0（缺失=0 / CRC不符=0）；符号全集 = 21116（内核 ∪ 厂商模块 ∪ 外部参考） |
+| 闸门1 导出对账 | `gate_new_exports.py out/vmlinux.symvers` | 新增=9 消失=0 ｜ **遮蔽=0** ｜ 命中厂商新增=**6** ⇒ **脚本按原始判据给 rc=1（FAIL 判砖）**；这 6 条 = 本次**刻意**补的强引用（见上），**是模块能装载的前提**，不是守卫翻车 |
 | 闸门2 会拒绝装载 | `gate_vko_crc.py out/vmlinux.symvers <两个 vendor-ko 目录>` | **0**（连蓝牙基线 `sk_filter_trim_cap` 也已被定点覆写抹平） |
+
+> ⚠️ **闸门1 的 `rc=1` 是「已知并接受的偏差」，不要记成 PASS**：`gate_new_exports.py` 的判据是
+> 「命中厂商 新增=0」，而本版**必须**新增这 6 个被 `oplus_bsp_sched_ext.ko` **强引用**的符号 ——
+> 不导出它**根本装载不了**（GLOBAL 强引用，不是 weak），且全量 493 个 `.ko` 扫描证明**只有它**引用这 6 个名字
+> ⇒ 不存在 opt6 式的活锁面。**实测背书**：模块装载后 `Unknown symbol` = 0、`Oops/BUG:/Kernel panic` = 0、493 模块审计 PASS。
+> ⇒ 结论：**闸门1 的硬判据「遮蔽=0」满足；`rc=1` 属本版设计内的可解释项**。
+> 因此 `tools/preflight.ps1` 会在「闸门1 PASS 且遮蔽=0」这一项报 **FAIL** —— **这是预期内的**（连同「源码仓缺 tag v1.1-opt54」）。
 
 > 闸门1 基准：`/home/builder/opt5-baseline/Module.symvers` 在本机已丢失，本版用**设备现役 opt53 的
 > /proc/kallsyms 导出集**（`__ksymtab_*`，剔除模块符号，共 **15474** 条，与改动前 out/vmlinux.symvers 的
