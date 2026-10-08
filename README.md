@@ -62,6 +62,7 @@ python tools/patch_crc_sk_filter_trim_cap.py <Image> <vmlinux.symvers>
 |---|---|
 | `gate_new_exports.py` | **闸门1**：内核导出对账（新增 / 消失 / 遮蔽三侧；需在 WSL 内跑，基准在 `/home/builder/abi/`）|
 | `gate_vko_crc.py` | **闸门2**：厂商 .ko 的 modversions CRC 对账（判“会拒绝装载的模块”）|
+| `gate_all_modules.py` | **全量模块审计**：逐厂商 .ko 同时报「符号缺失 + CRC 不符」（闸门2 对「符号缺失」是盲区）；`python3 tools/gate_all_modules.py <内核树> <厂商.ko目录...>` |
 | `gate0_type_diff.py` | **闸门0**：类型级 ABI 预检 |
 | `patch_crc_sk_filter_trim_cap.py` | **蓝牙修复**：把 `sk_filter_trim_cap` 的 CRC 定点对齐厂商期望值（0x43b2b8f0 → 0xf5845708）|
 | `preflight.ps1 -Ver v1.1-optNN` | 发布前一键自检（树状态 / 闸门 / 镜像 md5 / 文档一致性 …）|

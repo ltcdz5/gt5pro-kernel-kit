@@ -45,6 +45,21 @@ if ($g1 -match 'PASS' -and $g1 -match '遮蔽=0') { ok '闸门1 PASS 且遮蔽=0
 $g2 = RunWsl ('cd ' + $Tree + ' && python3 ' + $KitWsl + '/tools/gate_vko_crc.py out/vmlinux.symvers ' + $RootWsl + '/vendor-ko/vendor_dlkm ' + $RootWsl + '/vendor-ko/system_dlkm 2>&1 | grep -m1 会拒绝装载')
 if ($g2 -match '= 1') { ok '闸门2 会拒绝装载 = 1（仅蓝牙基线）' } else { no ('闸门2 异常：' + $g2) }
 
+sec '2b) 全量厂商模块审计（缺失 + CRC，必须为 0）'
+# 独立于闸门2：闸门2 只看「已存在符号」的 CRC，缺符号是它的盲区（曾漏掉 oplus_bsp_sched_ext
+# 的 7 个缺符号，也没拦住 opt51 那种 493/493 全坏的破坏性配置改动）。本步逐 .ko 全量核对。
+$gA = RunWsl ('cd ' + $Tree + ' && python3 ' + $KitWsl + '/tools/gate_all_modules.py ' + $Tree + ' ' + $RootWsl + '/vendor-ko/vendor_dlkm ' + $RootWsl + '/vendor-ko/system_dlkm 2>&1')
+$gAl = @($gA -split [char]10)
+if ($gAl.Count -le 32) { foreach ($ln in $gAl) { Write-Host $ln } }
+else {
+  foreach ($ln in $gAl[0..15]) { Write-Host $ln }
+  Write-Host ('  ...（共 ' + $gAl.Count + ' 行，中间省略）...') -ForegroundColor DarkGray
+  foreach ($ln in $gAl[($gAl.Count - 16)..($gAl.Count - 1)]) { Write-Host $ln }
+}
+if ($gA -match 'VERDICT: PASS') { ok '全量模块审计 PASS（缺失=0 且 CRC 不符=0）' }
+elseif ($gA -match 'VERDICT: FAIL') { no '全量模块审计 FAIL：有模块缺符号或 CRC 不符（明细见上）' }
+else { no '全量模块审计没出结论（脚本没跑起来？）' }
+
 sec '3) 交付件'
 $img = Join-Path $Imgs ('boot-' + $Ver + '-repacked.img')
 if (Test-Path $img) { ok ($Ver + ' 镜像 md5=' + (Get-FileHash $img -Algorithm MD5).Hash.ToLower()) } else { no ('找不到 ' + $img) }
