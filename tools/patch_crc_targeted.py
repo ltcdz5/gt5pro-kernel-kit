@@ -11,16 +11,18 @@ OVERRIDES = [
      "BTF 逐块对比证明 struct sk_buff/sock/sock_common 与出厂一致；bluetooth.ko 其余 96 个符号全匹配"),
     ("find_task_by_vpid", 0x5cd583b1, 0x5cd583b1,
      "原型为 struct task_struct *(pid_t)，纯标量参数、指针返回，无结构体传值/布局依赖"),
-    ("iso_masks", 0xaee9c24f, 0xcb6a4c44,
-     "oplus_bsp_sched_ext.ko 反汇编证明它按 4 个内嵌 cpumask 直接偏移访问："
-     "exclusive@0x00 / partial@0x08 / big@0x10 / little@0x18，且为单次 ldr "
-     "(addr = &iso_masks + (cpu/64)*8 + off)，无指针解引用 ⇒ 与我们的 "
-     "cpumask_var_t(CONFIG_CPUMASK_OFFSTACK=n, NR_CPUS=32) 布局逐字段一致；"
-     "CRC 差异只来自 genksyms 对匿名结构体成员名的展开"),
+    ("iso_masks", 0x9998675b, 0xcb6a4c44,
+     "布局与出厂内核逐字段一致：出厂 BTF 的 struct scx_iso_masks = 40B / 5 x cpumask_var_t"
+     "(ex_free@0, exclusive@8, partial@16, big@24, little@32)，本树 pahole -C scx_iso_masks 输出完全相同；"
+     "oplus_bsp_sched_ext.ko 反汇编(cpu_util_policy_store)按原始偏移读 0x00/0x08/0x10 三次，与 5 成员布局吻合。"
+     "CRC 差异是 genksyms 侧产物：实测 struct scx_iso_masks 只能算出 0x9998675b"
+     "（改成员类型/加 __read_mostly/__aligned/const/数组/前置换 TU 上下文均不变），"
+     "出厂 TU 的 0xcb6a4c44 无法从公开源复现 ⇒ 只能定点覆写"),
     ("task_is_scx", 0x61658a4e, 0xb3071c68,
-     "原型 bool (struct task_struct *)：纯指针入参 + 标量返回，无结构体传值；"
-     "模块把它作为 hmbird_ops_t 的第 0 个函数指针注册给 register_hmbird_sched_ops，"
-     "签名逐位一致；CRC 差异只来自 genksyms 对 struct task_struct 定义可见性的展开"),
+     "实现已与出厂内核逐指令对齐（Image.stock task_is_scx @0x2ecb18：ldr x8,[x0,#832]; "
+     "cmp &ext_sched_class; cset w0,eq; ret），原型 bool (struct task_struct *)：纯指针入参 + 标量返回，"
+     "无结构体传值；模块把它作为 hmbird_ops_t 第 0 个函数指针注册给 register_hmbird_sched_ops，签名逐位一致；"
+     "CRC 差异只来自 genksyms 对 struct task_struct 展开的差异"),
 ]
 
 def main():

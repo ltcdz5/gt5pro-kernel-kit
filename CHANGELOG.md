@@ -651,9 +651,14 @@ Unknown symbol hmbird_dir
 
 - **不要在这台设备上 register 任何 scx 调度器**：opt43 实测 = 整机硬挂死 + PMIC 看门狗复位（详见 §三.3）。
   本版只让**模块可装载 + 接口目录出现**，`enabled` 实测为 0，即 scx 调度类**未被启用**。
-- `scx_get_md_info()` 是**诚实的空实现**（`*vaddr = 0; *size = 0;`，消费方按 0 跳过快照）；
-  `task_is_scx()` 返回 false；`iso_masks` 只做保守初始化。⇒ 这是「可装载 + 不崩」的最小可用面，
-  **不是** OPPO hmbird 调度器的完整功能（完整功能需要 `CONFIG_HMBIRD_SCHED` 底座与 `hmbird_sched_proc_main.c`，
+- `scx_get_md_info()` 是**诚实的空实现**（`*vaddr = 0; *size = 0;`）——
+  ⚠️ **2026-10-08 更正：此处"消费方按 0 跳过快照"是错的**。出厂反汇编证明厂商模块
+  `hmbird_misc_init` 是 `cbz x8, <brk #0x800>`，vaddr==0 会 **BUG()**；
+  opt55 已改为发布真实 4096 B 线性映射区域（详见 §十二）。
+  `task_is_scx()` 返回 false（opt55 已改为出厂真实实现 `p->sched_class == &ext_sched_class`）；
+  `iso_masks` 只做保守初始化（opt55 已修正为出厂 5 成员布局 —— opt54 的 4 成员匿名结构体
+  会被厂商模块按原始偏移读错，见 §十二）。⇒ 这是「可装载 + 不崩」的最小可用面，
+  **不是** OPPO hmbird 调度器的完整功能（完整功能需要 hmbird 核心 `hmbird_sched_proc_main.c`，
   后者本树缺失，且整树回移会因 struct 改动造成 CRC 成批漂移 —— 见 §三.7 的通用硬约束）。
 - 厂商模块**开机不自动装载**（设备实测 `dmesg` 里 game_opt/sched_ext 的 modprobe 计数 = 0，opt53 亦然），
   属 ROM 既有行为；验收按 `insmod` 口径。
@@ -673,3 +678,106 @@ Unknown symbol hmbird_dir
 - 正常路径：Scene 里关掉该功能（解除 BPF link）；若界面无响应，重启后在 Scene 内关掉再重启。
 - 异常路径（卡死/循环重启）：长按电源+音量进 **fastboot** ⇒ `fastboot flash boot_a boot-v1.1-opt54-repacked.img` ⇒ `fastboot set_active a` ⇒ `fastboot reboot`；仍异常则刷 opt53（md5 f927d8a259f0fad033e6c9b283066ae7）。详见《救砖与回退-标准流程-20261001.md》。
 - ⚠️ 若 Scene 开机自动启用该功能，回退后要**先在 Scene 里关掉**，否则会再次进入挂死循环。
+
+## 十二、v1.1-opt55（第 4 步第二阶段：sched_ext 语义补全 —— A 档**部分达成**；**未刷机，待确认**）
+
+| 项 | 值 |
+|---|---|
+| 版本串 | 6.1.141-android14-11-o-ltcdz5-v1.1-opt55（banner #75-ack304-v1.1-opt55） |
+| 裸内核 | Image.opt55，md5 ded5953329ceb785184898e9cebe64ae（39,336,448 B） |
+| 镜像 | boot-v1.1-opt55-repacked.img，md5 aca40a5cc4c81f7516bf734bc1bdacaf（201,326,592 B） |
+| 回退首选 | boot-v1.1-opt54-repacked.img，md5 cbd8a8297bc0eca55cc66baba571dba0（已复核） |
+| 树内提交 | 9254c552d5f8（分支 opt47，tag opt55） |
+| 上机 | **未刷**：按安全线先交三关证据，等确认后再刷 boot_a |
+
+### 本轮新资产：首次拿到**出厂内核**的 BTF 与代码（此后可"逐指令"对账）
+
+| 资产 | 来源 |
+|---|---|
+| `/home/builder/abi/btf2/stock.btf` | 出厂 `images/boot_a.img` 的 BTF（类型/成员偏移/函数原型） |
+| `/home/builder/stock/Image.stock` | 出厂 `boot_a.img[4096 : 4096+kernel_size]`（**未压缩**，35,695,104 B） |
+| `/home/builder/stock/stock_exports.json` | 扫 Image.stock 的 `__ksymtab` 反解出的出厂导出表（63,569 名） |
+
+出厂版本串 `6.1.141-android14-11-o-g6ed3e67335d5`。三条实测：
+
+1. 出厂**导出**的 hmbird 名字**恰好**是 opt54 hub 的那 10 个（`scx_get_md_info task_is_scx iso_masks
+   ext_module_loaded non_ext_task hmbird_dir __scx_ops_enabled slim_for_app scx_sched_rq_stats
+   scx_irq_work_lastq_ws`）；`register_hmbird_sched_ops`/`test_task_is_hmbird` 出厂**不导出**，
+   由厂商模块 `oplus_bsp_sched_assist.ko` 导出。
+2. 出厂 config `CONFIG_HMBIRD_SCHED=y`，且**没有** `SLIM_SCHED`/`SCHED_CLASS_EXT` ⇒ 是**改名**。
+3. 出厂内核**有** hmbird 核心（BTF 里 `hmbird_stats_open/show`、`stats_print`、`slim_sysfs_init`；
+   Image 里有 `hmbird_stats` proc 名与 `<hmbird_sched>` 日志前缀）—— 本树（开源投放）**没有**。
+
+### 本轮改动（1 文件 +92 −28；**导出集逐名不变**）
+
+1. **`task_is_scx()` 换成出厂真实实现**（原为 `return false` 桩）：
+   `return p->sched_class == &ext_sched_class;`
+   出厂 `Image.stock task_is_scx @0x2ecb18`：`ldr x8,[x0,#832]` → `adrp/add x9,&ext_sched_class`
+   → `cmp` → `cset w0,eq` → `ret`；本版（偏移 0x139a7c）**指令序列逐条相同**，只有地址不同。
+   与 `reigadegr/sun_action::6.1sched_ext.diff` 里 OPPO 自己的写法一致（注释「Must with rq lock held.」）。
+   运行时等价：scx 未启用 ⇒ 无任务落在 `ext_sched_class` ⇒ 恒 false，与旧桩**行为相同**，**零风险**。
+2. **`scx_get_md_info()` 不再是空实现**：按出厂语义发布一块**真实的 4096 B minidump 区域**
+   （"md" = **minidump**）。出厂 `@0x2ee210`：`mov w9,#0x1000` ; `ldr x8,[x8,#3584]`（读 .bss 缓冲指针）;
+   `str x8,[x0]` ; `str x9,[x1]` ; `ret`；写者 `@0x1c1d7e0` = `kmalloc_trace(kmalloc_caches[…],0xdc0,0x1000)`
+   后 `str x0,[x8,#3584]` ⇒ 出厂是 **kmalloc(4096)**，**线性映射**内存。
+   本版：`arch_initcall` 里 `kzalloc(4096, GFP_KERNEL)`，返回该指针 + 4096。
+   （厂商模块把 vaddr 按 `memstart_addr/kimage_voffset` 折算成**物理地址**再 `msm_minidump_add_region`
+   ⇒ **必须线性映射**，不能用 vmalloc。）
+3. **`iso_masks` 类型修正为出厂布局**（本轮最实质的**缺陷修复**）：
+   出厂 BTF `struct scx_iso_masks` = **40 B / 5 个 cpumask_var_t**（`ex_free@0 exclusive@8 partial@16
+   big@24 little@32`）；本树 `pahole -C scx_iso_masks out/vmlinux` **逐字段相同**。
+   opt54 用的是**匿名 4 成员结构体**（32 B：exclusive@0/partial@8/big@16/little@24），
+   而 `oplus_bsp_sched_ext.ko:cpu_util_policy_store` 按**原始偏移**读 0x00/0x08/0x10 ⇒
+   opt54 里 0x10 落在我们的 `big`（=全 CPU）⇒ **模块把每个 CPU 都当成"部分隔离"**。
+   改成 5 成员具名结构体后 0x00/0x08/0x10 = ex_free/exclusive/partial（全空）⇒ 与出厂一致。
+
+### 「CONFIG_HMBIRD_SCHED 底座」为什么**不抄**（评估结论，有证据）
+
+1. **底座已在**：出厂是把 `SLIM_SCHED`+`SCHED_CLASS_EXT` 改名成 `HMBIRD_SCHED`；
+   本树 `CONFIG_SLIM_SCHED=y`+`CONFIG_SCHED_CLASS_EXT=y` ⇒ sched_ext 机器已启用。
+2. **抄了是空壳**：本树全树仅 7 处 `CONFIG_HMBIRD_SCHED`，可用者只有 `sa_hmbird.c`(2) 与
+   `sa_balance.c`(3)；而 `CONFIG_OPLUS_FEATURE_SCHED_ASSIST` **=n** ⇒ 这两个文件**不参与编译**
+   ⇒ 加 `CONFIG_HMBIRD_SCHED=y` **零效果**。
+3. **抄了是陷阱**：一旦有人打开 `CONFIG_OPLUS_FEATURE_SCHED_ASSIST`，`sa_hmbird.c` 会从内核导出
+   `register_hmbird_sched_ops`/`test_task_is_hmbird` —— 这两个名字**由厂商模块
+   `oplus_bsp_sched_assist.ko` 导出**（设备 `/proc/kallsyms` 实证）⇒ **遮蔽** ⇒ 闸门1 硬禁止
+   （opt6/`test_task_ux` 致砖机制）。⇒ **不加**。
+
+### 闸门（刷机前必过三关）与产物
+
+| 闸门 | 结果 |
+|---|---|
+| 全量 493 模块审计 `_audit/audit_all.py` | **PASS**：493 模块，缺失=0 / CRC不符=0（内核导出 15483） |
+| 闸门1 `gate_new_exports.py` | 新增=9 消失=0 ｜ **遮蔽=0** ｜ 命中厂商新增=6（= opt54 那 6 个刻意补的强引用） |
+| 闸门2 `gate_vko_crc.py` | **会拒绝装载的模块 = 0** |
+| 导出集 vs opt54 | 逐名 diff **为空**（15483 = 15483）⇒ 本轮不可能新增遮蔽面 |
+
+`patch_crc_targeted.py` 4 条覆写全部 `OK`（旧值在 Image 内均唯一出现）：
+`sk_filter_trim_cap 0x43b2b8f0→0xf5845708`、`find_task_by_vpid 同值`、
+**`iso_masks 0x9998675b→0xcb6a4c44`（本轮更新，类型改了 CRC 随之变）**、
+`task_is_scx 0x61658a4e→0xb3071c68`（依据补充为"实现与出厂逐指令一致"）。
+
+> **iso_masks 的 CRC 为何只能定点覆写**（实测）：genksyms 对**具名结构体变量只哈希类型名**，
+> 与成员/属性/TU 上下文无关。用 `out/scripts/genksyms/genksyms` 配同一套预处理参数实测，
+> `struct scx_iso_masks` 恒为 `0x9998675b`（改成员类型、`__read_mostly`/`__aligned`/初始化器/
+> 前置 30 个无关结构体、仅前置声明 + `extern`，值都不变）；匿名 5 成员 `0x1fad710e`、
+> typedef 匿名 `0x4da16dc7`、`const` `0xf1ab99f1`、数组 `0x9586b53b` ——
+> **出厂期望 `0xcb6a4c44` 全不中** ⇒ 出厂 TU 的声明形式无法从公开源复现，
+> ABI 无差异由 **BTF 逐字段 + 模块反汇编**双证。
+
+### 边界（勿越界）
+
+- **本版未刷机**。刷只刷 `boot_a` + `fastboot set_active a`；回退件 opt54 常备。
+- **仍然绝对不要 register 任何 scx 调度器**（§三.3：整机硬挂死 + PMIC 复位）。
+  `/sys/kernel/sched_ext/enabled` 仍 = 0；该目录只有只读 `enabled`/`switched_all`
+  （**这两个属性就是上游全集**，语义已完整）。
+- **仍为空实现/保守初值（如实标注）**：`scx_get_md_info()` 的区域**内容**为 0（填充它的 hmbird 核心本树没有）；
+  `non_ext_task` 恒 true（本树 ext.c 从不 `atomic_set(…,false)`）；`iso_masks.big/little` = 全 CPU；
+  `hmbird_dir` 保持 NULL ⇒ 厂商模块不创建它的 /proc 项。出厂**有** `/proc/hmbird_sched`，
+  本版**刻意不复刻**（那是新的 0666 procfs 可写面，对 sched_ext 语义零贡献）。
+- 本版**没有**新增/删除任何导出，**没有**动任何结构体布局，**没有**新增可写面。
+
+> ⚠ **与 §十一 的一条记录冲突，以本节为准**：§十一「遗留与边界」写 `scx_get_md_info()` 返回 0 时
+> "消费方按 0 跳过快照" —— **不成立**。厂商模块 `hmbird_misc_init` @0x27ac 是 `cbz x8, <brk #0x800>`，
+> vaddr==0 直接 **BUG()**。（opt54 没炸是因为 `sched_ext_init` 开头读 `current->sched_prop`，
+> insmod 时为 0 ⇒ `hmbird_misc_init` **整段没跑**。）
