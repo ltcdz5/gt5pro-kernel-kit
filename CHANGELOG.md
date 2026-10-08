@@ -798,3 +798,29 @@ Unknown symbol hmbird_dir
 - ⇒ **授权收紧为「受控实验」**：仅在明确实验窗口、且在电脑旁备好 fastboot 与 **opt53 断路器镜像**（opt53 无 `/sys/kernel/sched_ext`，任何 scx 都无法注册）时方可尝试；**日常使用禁止 register scx**。
 - **更正**：本内核 `/sys/kernel/sched_ext` 只有只读 `enabled`/`switched_all`，**没有** `scx_attr_enabled` 这个属性（此前记录有误）。
 - **新增线索**：酷安模块 `Thread_Editor`（n1.6Alpha）通过 KernelSU WebUI 的 `ksu.exec` 直接改写 Scene 的两个文件：`/data/user/0/com.omarea.vtools/files/threads.json` 与 `threads_auto.json`；其自述「sched_ext 尚在试验阶段，当前仅支持 Linux Kernel 6.12」⇒ 本机 6.1 属支持范围外。该模块**无 service.sh（不开机自动执行）**，但 Scene 会在运行时套用这两个文件 ⇒ 若配置异常可致系统挂起。
+
+## 十三、hmbird 移植结案（2026-10-08，两项独立分析）
+
+**结论：不需要、也不建议移植 hmbird sched_class。** 两份报告：
+- `档案/性能功耗/第4步c-hmbird核心可移植性-20261008.md`（kit `95bb5c0`）
+- `档案/性能功耗/第4步d-社区A15补丁应用预检-20261008.md`（kit `fb1fcff`）
+
+**决定性发现（三方符号对照：出厂 × opt55 × 社区实现）**
+1. **出厂内核里根本没有 hmbird sched_class**；出厂导出的 hmbird 符号**恰好是 10 个**，而这 10 个 **opt55 已经全部导出** ⇒ 我们与出厂在这一面**已经对齐**。
+2. 社区那套（"Natsu 6.6" 内核、一加12 的 6.1 移植）是在**实现出厂都没有的东西** ⇒ 属"超出出厂"的探索，收益不明、风险大。
+3. 本树 `kernel/sched/walt/` **不存在**（无 WALT）⇒ 社区截图里 `cpufreq_walt.c` 的"初始化器塌方"（`function definition is not allowed here`）**是别人 WALT 树上的问题**，与我们无关；6 条补丁里 `cpufreq_walt`/`__ATTR_RW` **0 命中**。
+
+**补丁预检（dry-run，未改树）**
+| 补丁 | 条目 | 可应用 | 冲突 | 缺文件 |
+|---|---|---|---|---|
+| fengchi OP-PAD-3-SM8750_A15 | 36 | 20 (55.6%) | **16** | 0 |
+| 6.1sched_ext.diff | 25 | 8 (32%) | **13** | **3** |
+
+- 闸门1 **硬遮蔽 0 条** ✓（补丁新增的 9 个内核导出名 ∩ 4,623 个厂商导出名 = 空）
+- 但两类风险必须登记：**3 组头文件保护宏碰撞**（`sa_oemdata.h` 甚至逐字节相同 ⇒ 后者静默跳过）、**3 处重复全局定义**（`non_ext_task` `u64` vs `atomic_t` ⇒ CRC 拒载）
+- **明确不建议 `6.1sched_ext.diff`**：会覆盖已审计的 `hmbird_export.c`（10 符号 → 8 符号，丢 `iso_masks`/`scx_get_md_info` ⇒ `oplus_bsp_sched_ext.ko` 拒载）
+- 预计人工决策点 **≥60 处**；判据 6/6 命中 ⇒ **不建议直接移植任何一条**
+
+**顺带确认（操作层面）**
+- 本地那两份补丁是 **CRLF 污染副本**，直接用会假失败；归一化副本在 lab `2026-10-08/scx-step4d/norm/`。
+- **WSL 侧 git push 会永久挂死**（remote 指向 `gh-proxy.com`，gh 凭据助手只认 `host=github.com` ⇒ 无凭据 ⇒ 转交互提示）；`gh-proxy.com` 还是只读代理。⇒ **一律用 Windows 侧 git 推送**（remote 直连 github.com，已验证）。本轮已清理 4 个挂死进程 + 1 个遗留 8 小时的 `opt48` 推送。
