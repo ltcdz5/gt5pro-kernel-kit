@@ -22,7 +22,7 @@ OVERRIDES = [
      "实现已与出厂内核逐指令对齐（Image.stock task_is_scx @0x2ecb18：ldr x8,[x0,#832]; "
      "cmp &ext_sched_class; cset w0,eq; ret），原型 bool (struct task_struct *)：纯指针入参 + 标量返回，"
      "无结构体传值；模块把它作为 hmbird_ops_t 第 0 个函数指针注册给 register_hmbird_sched_ops，签名逐位一致；"
-     "CRC 差异只来自 genksyms 对 struct task_struct 展开的差异"),
+     "CRC 差异来自 genksyms 的 TU 上下文（bool 等 typedef 展开），与结构体成员布局无关：实测把 struct sched_ext_entity/task_struct 逐字段对齐出厂 BTF 后，自然 CRC 仍是 0x61658a4e 不变（见 档案/性能功耗/第5步c-结构体对齐实验-20261009.md）"),
 ]
 
 def main():
