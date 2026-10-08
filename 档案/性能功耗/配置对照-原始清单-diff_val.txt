@@ -1,0 +1,7 @@
+CONFIG_DEFAULT_TCP_CONG stock="cubic" our="bbr"
+CONFIG_EXTRA_FIRMWARE stock="" our="regulatory.db regulatory.db.p7s"
+CONFIG_HZ stock=250 our=300
+CONFIG_KFENCE_SAMPLE_INTERVAL stock=500 our=0
+CONFIG_LSM stock="landlock,lockdown,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf" our="landlock,lockdown,yama,loadpin,safesetid,integrity,selinux,baseband_guard,smack,tomoyo,apparmor,bpf"
+CONFIG_PAHOLE_VERSION stock=123 our=125
+CONFIG_PANIC_TIMEOUT stock=-1 our=30
