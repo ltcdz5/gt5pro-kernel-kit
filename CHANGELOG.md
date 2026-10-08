@@ -389,3 +389,46 @@ boot_progress_start=12.87s），并与 opt9 一起**验证了这条裁剪规则*
 ---
 
 *最近更新：2026-10-04（补齐 opt5 → v1.1-opt42 全量 changelog；建立发布规范；补写全部错误实验的机制级原因；修正 opt8 误标为「未上机」；内容边界清理与仓库重建）。*
+
+---
+
+## 六、v1.1-opt48（现役；观察期中，**尚未建 Release**）
+
+| 项 | 值 |
+|---|---|
+| 版本串 | 6.1.141-android14-11-o-ltcdz5-v1.1-opt48 |
+| git | 1c0304970586（源码快照分支：`opt48`） |
+| 镜像 | boot-v1.1-opt48-repacked.img，md5 ae3989451bf046d61762677573f07d28（201,326,592 B） |
+| 回退首选 | boot-v1.1-opt47-repacked.img，md5 4ad29d109c597f018e30f2f908d5031a |
+| 上机时刻 | 2026-10-08 00:17 刷 boot_a，槽位 _a，现役 |
+| 观察期 | 起算 2026-10-08 00:17；**因外围更新作废重算**（Scene 更新为 `N1 2026.10 Alpha13`，lastUpdateTime 2026-10-08 02:50）⇒ 新窗口 **2026-10-08 02:52 → 10-09 02:52** |
+| 状态 | ★现役（观察中，按《发布规范》§二 未建 Release、未对外宣告） |
+
+**本版改动**（13 文件 +122 −38）
+
+1. f2fs：merged IPU 写提交补漏（新增 `f2fs_submit_all_merged_ipu_writes`）+ 压缩日志上限校验；
+2. i2c：适配器注册竞态（`device_initialize`/`idr_replace`/`device_add` 顺序 + 新增 `i2c_deregister_clients`）；
+3. rpmsg：char 设备 UAF；
+4. arm64：`VM_FAULT_RETRY_VMA` 仅重试一次（`tried_vma_lock`）；
+5. pKVM：`pvmfw_relinquished` 条件修正；
+6. config/杂项：移除误入的 `CONFIG_SLAB_MERGE_DEFAULT`；`fwnode_init()` 补 `dev/flags` 清零。
+
+**闸门与上机验收**
+
+- 闸门 1（导出对账）：15437 / 新增 **0** / 消失 **0**；
+- 闸门 2（厂商模块 CRC）：会拒绝装载 = **1**（仅 `bluetooth.ko`）；
+- 上机：`/proc/version` = opt48、slot `_a`、`lsmod` = 621、`oops/BUG/panic` = 0/0/0、`disagrees about version` = 0；
+- 连续运行核验（2026-10-08 12:55，uptime 36,164 s）：`kernel BUG / BUG: / WARNING: / Oops / panic / RCU stall / soft lockup / Unable to handle / Internal error / hung_task` **全 0**；`/sys/fs/pstore` 为空 ⇒ 凌晨 02:52 的 `ro.boot.bootreason=reboot` 为机主更新 Scene 的手动重启，**非崩溃**；5 条 `warn_alloc` 全部来自厂商驱动（`oplus_bsp_zsmalloc`/`hybridswap_zram`、`oplus_bsp_waker_identify`）在高内存压力下的大块分配告警，不在本版改动路径上。
+
+**配套归档**：`档案/内核审核-20261007/`（总报告 + A/B/C/D 方向报告 + 2 份修复补丁）
+
+---
+
+## 七、2026-10-08 运行期排查（并入本节，待观察期结束再整理）
+
+- **系统侧崩溃聚类（/data/tombstones，32 份）**：LuckyTool `libdexkit.so` ≈15 次（`com.oplus.battery` 7 / `settings` 4 / `ota` 2 / 闹钟 1，集中在 10-06 22:16–22:29）；**高通相机 HAL 11 次**（10 次是 `binderDied` 自杀式重启、2 次 `couldn't find an OpenGL ES implementation`）；**SurfaceFlinger 4 次**（同一 PC：`libgui.so BufferQueueConsumer::acquireBuffer` ← `FramebufferSurface::advanceFrame`，2×SIGILL + 2×SIGSEGV）；`.qtidataservices` 2 次（关机阶段 `libWlanServiceJni.so handleServiceDeath`，属关机副产物）。**近 24 h 仅 1 次且为关机副产物**。
+- **相关性**：10-05 21:29:58 / 21:50:32 两次 SF 崩溃后 **5 秒**相机 provider 即 `binderDied` abort ⇒ 相机 HAL 崩溃是 SF 崩溃的下游。SF 崩溃首帧落在 `<unknown>`/匿名映射（函数指针被破坏）；**无任何模块替换 `libgui.so`/skia/vulkan**，但设备被 `android-skia-vulkan v2.2` 设为 `debug.hwui.renderer=skiavk` + `debug.renderengine.backend=skiavkthreaded`（首要嫌疑，待停用验证）。
+- **LTPO/1 Hz 定案**：`min_fps` 卡 120 的**根因 = 刷新率配置模板**（原厂 20250522 自带 `ambient*`/`lock_rate*` ⇒ 对亮度变化敏感）+ **亮度变化期间的 `setBrightnessBlockedRefreshRate`/`isStateReady 0`**；20240925 模板（不含上述两块）在自动亮度开着时稳定 `min_fps=1`（内核侧 `sa_min_fps:1` 同步）。**方法学更正**：`action.sh` 的 bind-mount 热切换**只换文件**，system_server/内核不重读 ⇒ 配置对比必须逐版重启。
+- **外围模块**：horae 常驻改为独立新模块 `horae_once`（开机一次性，无双守护/无轮询，实测 `已就绪 pid=9382`）；IMS_VAROS 的 horae 冲突与 extreme_gt 的 `=0` 互斥关系已记录；AOD 模块 `com.op.aod.enhance` 升到官方 v1.5（旧 v1.3 备份留档），`com.tlsu.fullaod` 已卸载。
+- **opt49（未上机）**：新增 `MODULE_FORCE_LOAD / NTFS3_FS(+LZX_XPRESS) / SQUASHFS(+XZ) / KSM / CIFS`；构建中发现**厂商源码 L2TP 已损坏**（`net/l2tp/l2tp_core.c` 调用无定义的 `l2tp_session_inc_refcount`，modpost 报 undefined）⇒ 在 defconfig 里显式 `# CONFIG_L2TP is not set` / `# CONFIG_PPPOL2TP is not set`（运行时由厂商预编译 `l2tp_core.ko`/`l2tp_ppp.ko` 提供）。构建 rc=0，**镜像与双闸门待机主回来后再跑/刷机**。
+

@@ -1,0 +1,95 @@
+diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
+index acd1a67c2723..4519d93144b2 100644
+--- a/arch/arm64/configs/gki_defconfig
++++ b/arch/arm64/configs/gki_defconfig
+@@ -840,7 +840,6 @@ CONFIG_RCU_NOCB_CPU_CB_BOOST=y
+ CONFIG_SECTION_MISMATCH_WARN_ONLY=y
+ CONFIG_SECURITY_LANDLOCK=y
+ CONFIG_SECURITY_PATH=y
+-CONFIG_SLAB_MERGE_DEFAULT=y
+ CONFIG_XZ_DEC_MICROLZMA=y
+ # CONFIG_ZRAM_MEMORY_TRACKING is not set
+ CONFIG_MQ_IOSCHED_SSG=y
+diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
+index 45cd20fbba38..5df15d95198b 100755
+--- a/arch/arm64/mm/fault.c
++++ b/arch/arm64/mm/fault.c
+@@ -542,6 +542,7 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
+ 	unsigned int mm_flags = FAULT_FLAG_DEFAULT;
+ 	unsigned long addr = untagged_addr(far);
+ 	struct vm_area_struct *vma;
++	bool tried_vma_lock = false;
+ 
+ 	if (kprobe_page_fault(regs, esr))
+ 		return 0;
+@@ -629,9 +630,15 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
+ 		return 0;
+ 	}
+ 
+-	/* If the first try is only about waiting for the I/O to complete */
+-	if (fault & VM_FAULT_RETRY_VMA)
++	/*
++	 * 首次只是等 I/O 完成时，重试一次无锁 VMA 路径；之后的 retry 一律走
++	 * mmap_lock（与上游 fall-through 语义一致），这样循环有上界，不会被
++	 * 持续的 VM_FAULT_RETRY_VMA 无限自旋。
++	 */
++	if ((fault & VM_FAULT_RETRY_VMA) && !tried_vma_lock) {
++		tried_vma_lock = true;
+ 		goto retry_vma;
++	}
+ lock_mmap:
+ 
+ retry:
+diff --git a/drivers/i2c/i2c-core-base.c b/drivers/i2c/i2c-core-base.c
+index 4293fdd4d4df..521f50979d64 100644
+--- a/drivers/i2c/i2c-core-base.c
++++ b/drivers/i2c/i2c-core-base.c
+@@ -1504,14 +1504,20 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
+ 	 * 在注册中途用 i2c_get_adapter() 拿到半成品适配器。
+ 	 * 对应 ACK 1febb174815b（i2c: core: fix adapter registration race）。
+ 	 */
++	/*
++	 * opt48: device 必须在指针公布之前完成初始化，否则并发 i2c_get_adapter()
++	 * 可能拿到 dev 尚未初始化的适配器（ACK e984010cda7d）。
++	 */
++	device_initialize(&adap->dev);
++
+ 	mutex_lock(&core_lock);
+ 	idr_replace(&i2c_adapter_idr, adap, adap->nr);
+ 	mutex_unlock(&core_lock);
+ 
+-	res = device_register(&adap->dev);
++	res = device_add(&adap->dev);
+ 	if (res) {
+ 		pr_err("adapter '%s': can't register device (%d)\n", adap->name, res);
+-		goto err_remove_irq_domain;
++		goto err_put_adap;
+ 	}
+ 
+ 	res = i2c_setup_smbus_alert(adap);
+@@ -1553,8 +1559,11 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
+ 	return 0;
+ 
+ out_reg:
++	device_del(&adap->dev);
++err_put_adap:
++	/* device_add 失败也会走到这里，completion 必须在 put_device 之前初始化 */
+ 	init_completion(&adap->dev_released);
+-	device_unregister(&adap->dev);
++	put_device(&adap->dev);
+ 	wait_for_completion(&adap->dev_released);
+ err_remove_irq_domain:
+ 	/* opt47: 失败路径补拆 Host Notify IRQ domain（取自 ACK e984010cda7d 的附带收益；
+diff --git a/fs/f2fs/sysfs.c b/fs/f2fs/sysfs.c
+index 97a3a26427ae..b9a5d686add6 100755
+--- a/fs/f2fs/sysfs.c
++++ b/fs/f2fs/sysfs.c
+@@ -780,7 +780,7 @@ static ssize_t __sbi_store(struct f2fs_attr *a,
+ 
+ #ifdef CONFIG_F2FS_FS_COMPRESSION_FIXED_OUTPUT
+ 	if (!strcmp(a->attr.name, "compress_log_size")) {
+-		if (t < MIN_COMPRESS_LOG_SIZE || t > MAX_COMPRESS_LOG_SIZE)
++		if (t < MIN_COMPRESS_LOG_SIZE || t > MAX_SUPPORTED_COMPRESS_LOG_SIZE)
+ 			return -EINVAL;
+ 		f2fs_down_write(&sbi->sb_lock);
+ 		F2FS_OPTION(sbi).compress_log_size = (unsigned char)t;

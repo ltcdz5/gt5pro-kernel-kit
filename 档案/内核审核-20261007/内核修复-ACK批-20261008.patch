@@ -1,0 +1,251 @@
+diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
+index acd1a67c2723..4519d93144b2 100644
+--- a/arch/arm64/configs/gki_defconfig
++++ b/arch/arm64/configs/gki_defconfig
+@@ -840,7 +840,6 @@ CONFIG_RCU_NOCB_CPU_CB_BOOST=y
+ CONFIG_SECTION_MISMATCH_WARN_ONLY=y
+ CONFIG_SECURITY_LANDLOCK=y
+ CONFIG_SECURITY_PATH=y
+-CONFIG_SLAB_MERGE_DEFAULT=y
+ CONFIG_XZ_DEC_MICROLZMA=y
+ # CONFIG_ZRAM_MEMORY_TRACKING is not set
+ CONFIG_MQ_IOSCHED_SSG=y
+diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
+index 45cd20fbba38..5df15d95198b 100755
+--- a/arch/arm64/mm/fault.c
++++ b/arch/arm64/mm/fault.c
+@@ -542,6 +542,7 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
+ 	unsigned int mm_flags = FAULT_FLAG_DEFAULT;
+ 	unsigned long addr = untagged_addr(far);
+ 	struct vm_area_struct *vma;
++	bool tried_vma_lock = false;
+ 
+ 	if (kprobe_page_fault(regs, esr))
+ 		return 0;
+@@ -629,9 +630,15 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
+ 		return 0;
+ 	}
+ 
+-	/* If the first try is only about waiting for the I/O to complete */
+-	if (fault & VM_FAULT_RETRY_VMA)
++	/*
++	 * 首次只是等 I/O 完成时，重试一次无锁 VMA 路径；之后的 retry 一律走
++	 * mmap_lock（与上游 fall-through 语义一致），这样循环有上界，不会被
++	 * 持续的 VM_FAULT_RETRY_VMA 无限自旋。
++	 */
++	if ((fault & VM_FAULT_RETRY_VMA) && !tried_vma_lock) {
++		tried_vma_lock = true;
+ 		goto retry_vma;
++	}
+ lock_mmap:
+ 
+ retry:
+diff --git a/drivers/i2c/i2c-core-base.c b/drivers/i2c/i2c-core-base.c
+index 4293fdd4d4df..977f901dfe14 100644
+--- a/drivers/i2c/i2c-core-base.c
++++ b/drivers/i2c/i2c-core-base.c
+@@ -61,6 +61,8 @@
+ static DEFINE_MUTEX(core_lock);
+ static DEFINE_IDR(i2c_adapter_idr);
+ 
++static void i2c_deregister_clients(struct i2c_adapter *adap);
++
+ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
+ 
+ static DEFINE_STATIC_KEY_FALSE(i2c_trace_msg_key);
+@@ -1504,14 +1506,20 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
+ 	 * 在注册中途用 i2c_get_adapter() 拿到半成品适配器。
+ 	 * 对应 ACK 1febb174815b（i2c: core: fix adapter registration race）。
+ 	 */
++	/*
++	 * opt48: device 必须在指针公布之前完成初始化，否则并发 i2c_get_adapter()
++	 * 可能拿到 dev 尚未初始化的适配器（ACK e984010cda7d）。
++	 */
++	device_initialize(&adap->dev);
++
+ 	mutex_lock(&core_lock);
+ 	idr_replace(&i2c_adapter_idr, adap, adap->nr);
+ 	mutex_unlock(&core_lock);
+ 
+-	res = device_register(&adap->dev);
++	res = device_add(&adap->dev);
+ 	if (res) {
+ 		pr_err("adapter '%s': can't register device (%d)\n", adap->name, res);
+-		goto err_remove_irq_domain;
++		goto err_put_adap;
+ 	}
+ 
+ 	res = i2c_setup_smbus_alert(adap);
+@@ -1553,8 +1561,12 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
+ 	return 0;
+ 
+ out_reg:
++	i2c_deregister_clients(adap);
++	device_del(&adap->dev);
++err_put_adap:
++	/* device_add 失败也会走到这里，completion 必须在 put_device 之前初始化 */
+ 	init_completion(&adap->dev_released);
+-	device_unregister(&adap->dev);
++	put_device(&adap->dev);
+ 	wait_for_completion(&adap->dev_released);
+ err_remove_irq_domain:
+ 	/* opt47: 失败路径补拆 Host Notify IRQ domain（取自 ACK e984010cda7d 的附带收益；
+@@ -1697,29 +1709,10 @@ static int __process_removed_adapter(struct device_driver *d, void *data)
+ 	return 0;
+ }
+ 
+-/**
+- * i2c_del_adapter - unregister I2C adapter
+- * @adap: the adapter being unregistered
+- * Context: can sleep
+- *
+- * This unregisters an I2C adapter which was previously registered
+- * by @i2c_add_adapter or @i2c_add_numbered_adapter.
+- */
+-void i2c_del_adapter(struct i2c_adapter *adap)
++static void i2c_deregister_clients(struct i2c_adapter *adap)
+ {
+-	struct i2c_adapter *found;
+ 	struct i2c_client *client, *next;
+ 
+-	/* First make sure that this adapter was ever added */
+-	mutex_lock(&core_lock);
+-	found = idr_find(&i2c_adapter_idr, adap->nr);
+-	mutex_unlock(&core_lock);
+-	if (found != adap) {
+-		pr_debug("attempting to delete unregistered adapter [%s]\n", adap->name);
+-		return;
+-	}
+-
+-	i2c_acpi_remove_space_handler(adap);
+ 	/* Tell drivers about this removal */
+ 	mutex_lock(&core_lock);
+ 	bus_for_each_drv(&i2c_bus_type, NULL, adap,
+@@ -1745,6 +1738,31 @@ void i2c_del_adapter(struct i2c_adapter *adap)
+ 	 * them up properly, so we give them a chance to do that first. */
+ 	device_for_each_child(&adap->dev, NULL, __unregister_client);
+ 	device_for_each_child(&adap->dev, NULL, __unregister_dummy);
++}
++
++/**
++ * i2c_del_adapter - unregister I2C adapter
++ * @adap: the adapter being unregistered
++ * Context: can sleep
++ *
++ * This unregisters an I2C adapter which was previously registered
++ * by @i2c_add_adapter or @i2c_add_numbered_adapter.
++ */
++void i2c_del_adapter(struct i2c_adapter *adap)
++{
++	struct i2c_adapter *found;
++
++	/* First make sure that this adapter was ever added */
++	mutex_lock(&core_lock);
++	found = idr_find(&i2c_adapter_idr, adap->nr);
++	mutex_unlock(&core_lock);
++	if (found != adap) {
++		pr_debug("attempting to delete unregistered adapter [%s]\n", adap->name);
++		return;
++	}
++
++	i2c_acpi_remove_space_handler(adap);
++	i2c_deregister_clients(adap);
+ 
+ #ifdef CONFIG_I2C_COMPAT
+ 	class_compat_remove_link(i2c_adapter_compat_class, &adap->dev,
+diff --git a/drivers/rpmsg/rpmsg_char.c b/drivers/rpmsg/rpmsg_char.c
+index a271fceb16f4..c02949adf563 100644
+--- a/drivers/rpmsg/rpmsg_char.c
++++ b/drivers/rpmsg/rpmsg_char.c
+@@ -100,6 +100,9 @@ static int rpmsg_ept_cb(struct rpmsg_device *rpdev, void *buf, int len,
+ 	struct rpmsg_eptdev *eptdev = priv;
+ 	struct sk_buff *skb;
+ 
++	if (!eptdev)
++		return 0;
++
+ 	skb = alloc_skb(len, GFP_ATOMIC);
+ 	if (!skb)
+ 		return -ENOMEM;
+@@ -448,6 +451,7 @@ static int rpmsg_chrdev_probe(struct rpmsg_device *rpdev)
+ 	struct rpmsg_channel_info chinfo;
+ 	struct rpmsg_eptdev *eptdev;
+ 	struct device *dev = &rpdev->dev;
++	int ret;
+ 
+ 	memcpy(chinfo.name, rpdev->id.name, RPMSG_NAME_SIZE);
+ 	chinfo.src = rpdev->src;
+@@ -460,13 +464,17 @@ static int rpmsg_chrdev_probe(struct rpmsg_device *rpdev)
+ 	/* Set the default_ept to the rpmsg device endpoint */
+ 	eptdev->default_ept = rpdev->ept;
+ 
++	ret = rpmsg_chrdev_eptdev_add(eptdev, chinfo);
++
++	if (ret)
++		return ret;
+ 	/*
+ 	 * The rpmsg_ept_cb uses *priv parameter to get its rpmsg_eptdev context.
+-	 * Storedit in default_ept *priv field.
++	 * Stored it in default_ept *priv field.
+ 	 */
+ 	eptdev->default_ept->priv = eptdev;
+ 
+-	return rpmsg_chrdev_eptdev_add(eptdev, chinfo);
++	return 0;
+ }
+ 
+ static void rpmsg_chrdev_remove(struct rpmsg_device *rpdev)
+diff --git a/fs/f2fs/inode.c b/fs/f2fs/inode.c
+index 79de51c0f2cb..c4e2fa3a4a07 100644
+--- a/fs/f2fs/inode.c
++++ b/fs/f2fs/inode.c
+@@ -259,14 +259,15 @@ static bool sanity_check_inode(struct inode *inode, struct page *node_page)
+ 		return false;
+ 	}
+ 
+-	if (f2fs_has_extra_attr(inode) &&
+-		f2fs_sb_has_flexible_inline_xattr(sbi) &&
+-		f2fs_has_inline_xattr(inode) &&
+-		(!fi->i_inline_xattr_size ||
+-		fi->i_inline_xattr_size > MAX_INLINE_XATTR_SIZE)) {
++	if (f2fs_sb_has_flexible_inline_xattr(sbi) &&
++		(fi->i_inline_xattr_size > MAX_INLINE_XATTR_SIZE ||
++		(f2fs_has_inline_xattr(inode) &&
++		fi->i_inline_xattr_size <
++			sizeof(struct f2fs_xattr_header) / sizeof(__le32)))) {
+ 		set_sbi_flag(sbi, SBI_NEED_FSCK);
+-		f2fs_warn(sbi, "%s: inode (ino=%lx) has corrupted i_inline_xattr_size: %d, max: %lu",
++		f2fs_warn(sbi, "%s: inode (ino=%lx) has corrupted i_inline_xattr_size: %d, min: %zu, max: %lu",
+ 			  __func__, inode->i_ino, fi->i_inline_xattr_size,
++			  sizeof(struct f2fs_xattr_header) / sizeof(__le32),
+ 			  MAX_INLINE_XATTR_SIZE);
+ 		return false;
+ 	}
+diff --git a/fs/f2fs/sysfs.c b/fs/f2fs/sysfs.c
+index 97a3a26427ae..b9a5d686add6 100755
+--- a/fs/f2fs/sysfs.c
++++ b/fs/f2fs/sysfs.c
+@@ -780,7 +780,7 @@ static ssize_t __sbi_store(struct f2fs_attr *a,
+ 
+ #ifdef CONFIG_F2FS_FS_COMPRESSION_FIXED_OUTPUT
+ 	if (!strcmp(a->attr.name, "compress_log_size")) {
+-		if (t < MIN_COMPRESS_LOG_SIZE || t > MAX_COMPRESS_LOG_SIZE)
++		if (t < MIN_COMPRESS_LOG_SIZE || t > MAX_SUPPORTED_COMPRESS_LOG_SIZE)
+ 			return -EINVAL;
+ 		f2fs_down_write(&sbi->sb_lock);
+ 		F2FS_OPTION(sbi).compress_log_size = (unsigned char)t;
+diff --git a/include/linux/fwnode.h b/include/linux/fwnode.h
+index 57d2b3e1f7a2..497c4cb68823 100644
+--- a/include/linux/fwnode.h
++++ b/include/linux/fwnode.h
+@@ -198,8 +198,10 @@ static inline void fwnode_init(struct fwnode_handle *fwnode,
+ 			       const struct fwnode_operations *ops)
+ {
+ 	fwnode->ops = ops;
++	fwnode->dev = NULL;
+ 	INIT_LIST_HEAD(&fwnode->consumers);
+ 	INIT_LIST_HEAD(&fwnode->suppliers);
++	fwnode->flags = 0;
+ }
+ 
+ static inline void fwnode_dev_initialized(struct fwnode_handle *fwnode,
