@@ -441,3 +441,10 @@ boot_progress_start=12.87s），并与 opt9 一起**验证了这条裁剪规则*
 | 上机核验（2026-10-08 16:4x） | `bluetooth/hci_uart/btqca/btbcm/rfcomm/hidp/btsdio` **全部装载**；`sk_filter_trim_cap` 告警 **0**；`disagrees about version` 总数 **0**（原为 4）；`Unknown symbol` 4（只剩 gameopt 的 scx hook，已知）；oops/BUG/panic 0；**蓝牙 `state: ON`、`enabled: true`、地址已出** |
 | ⚠️ 判据更新 | 「模块装载数 = 621」→ **628**（修复带来的新增装载，属预期增益）；「disagrees about version = 0」现在是**真 0**（原基线含蓝牙那 4 条） |
 
+**发布记录（2026-10-08）**
+
+- 源码快照分支：**`opt49`** = `8e2a46773322c680a450db8a52c83edc291b83bf`（内容 = 该版源码树 + LICENSE + NOTICE.md + 中文 README）
+- Release：**`v1.1-opt49`**（建在**源码仓库**；按机主决定**提前发布**——属《发布规范》§二 的例外，记录在案；观察期本应到 10-09 16:41）
+- 附件：`boot-v1.1-opt49-crc-repacked.img`（md5 `c40ee988904f2ea29720b0100b0ad124`）、`GT5Pro-RMX3888-v1.1-opt49-crc-AK3.zip`（md5 `13966f4df5e14c6289b4aff60b4380d9`）
+- **AK3（自本版起提供）**：包内带 `horae_once-v1.0.zip`、`quiet_logs-v1.0.zip` 两个附加模块，刷内核后自动用 `ksud module install`（Magisk 回退 `magisk --install-module`）安装
+- **蓝牙实测（机主）**：opt49-crc 刷入后 `bluetooth / hci_uart / btqca / btbcm / rfcomm / hidp / btsdio` 全部装载、`disagrees about version` = **0**、**蓝牙耳机连接与使用正常** ✓（本轮修复的最终验收）
