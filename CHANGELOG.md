@@ -1,4 +1,4 @@
-﻿# 版本变更日志（CHANGELOG）
+# 版本变更日志（CHANGELOG）
 
 **设备**：真我 GT5 Pro（pineapple / RMX3888，SM8650）· Android 16 · GKI 6.1.141 OKI
 **版本串格式**：6.1.141-android14-11-o-ltcdz5-v族.次-opt构建序（见《版本号规范-20261003.md》）
@@ -560,7 +560,15 @@ Unknown symbol hmbird_dir
 | 裸内核 | Image.opt54，md5 bbbc2cc39c5007795796f9ae0abc4d7f |
 | 镜像 | boot-v1.1-opt54-repacked.img，md5 cbd8a8297bc0eca55cc66baba571dba0（201,326,592 B） |
 | 回退首选 | boot-v1.1-opt53-repacked.img，md5 f927d8a259f0fad033e6c9b283066ae7（已核 md5） |
+| 更早回退 | boot-v1.1-opt50-repacked.img，md5 4a2829cf415756107d3785157e7289cd |
+| **AK3** | GT5Pro-RMX3888-v1.1-opt54-AK3.zip，md5 **e942c4fa81c2f94d411162a51bb8debf**（19,112,244 B；含 horae_once / quiet_logs 自动安装）|
+| 快照分支 | 源码仓 `gt5pro-kernel-src` 分支 `opt54` = `77b4ed9d804f2a16a2966b46bb5c8f088b33eb42`（已推送）|
 | 上机 | 2026-10-08 19:2x 刷 boot_a（只刷 boot_a），槽位 _a |
+
+> ⛔⛔ **醒目警示 —— 本版 scx 仅到「接口出现」**：
+> `/sys/kernel/sched_ext` 有了、`oplus_bsp_sched_ext.ko` 能装载了，但 **`enabled` 实测 = 0，scx 调度类并未启用**。
+> ⛔ **禁止在这台设备上 register 任何 scx 调度器**：opt43 实测 = **整机硬挂死 + PMIC 看门狗复位**（详见 §三.3）。
+> 本版交付的是「**可装载 + 不崩**」的最小可用面，**不是** OPPO hmbird 调度器的完整功能。
 
 **目标**：让厂商模块 `oplus_bsp_sched_ext.ko` 能装载，并使 `/sys/kernel/sched_ext` 出现。
 

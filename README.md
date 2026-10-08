@@ -15,20 +15,24 @@
 
 | 项 | 值 |
 |---|---|
-| 现役版本 | `6.1.141-android14-11-o-ltcdz5-v1.1-opt53`（hmbird 钩子回移 + sched_ext 缺符号定案）|
-| 现役镜像 | `boot-v1.1-opt53-repacked.img`，md5 `f927d8a259f0fad033e6c9b283066ae7` |
-| **AK3** | `GT5Pro-RMX3888-v1.1-opt50-AK3.zip`，md5 `fd82842d7ff857b756494a0846940407`（最近一版 AK3，opt53 无 AK3；内含附加模块自动安装）|
-| 回退首选 | `boot-v1.1-opt50-repacked.img`（md5 `4a2829cf415756107d3785157e7289cd`）|
+| 现役版本 | `6.1.141-android14-11-o-ltcdz5-v1.1-opt54`（banner `#75-ack304-v1.1-opt54`；sched_ext/hmbird 私有栈回移 —— `oplus_bsp_sched_ext.ko` 可装载、`/sys/kernel/sched_ext` 出现）|
+| 现役镜像 | `boot-v1.1-opt54-repacked.img`，md5 `cbd8a8297bc0eca55cc66baba571dba0`（201,326,592 B）|
+| **AK3** | `GT5Pro-RMX3888-v1.1-opt54-AK3.zip`，md5 `e942c4fa81c2f94d411162a51bb8debf`（内含附加模块自动安装）|
+| 回退首选 | `boot-v1.1-opt53-repacked.img`（md5 `f927d8a259f0fad033e6c9b283066ae7`）|
+| 更早回退 | `boot-v1.1-opt50-repacked.img`（md5 `4a2829cf415756107d3785157e7289cd`）|
 | 台账（权威） | [CHANGELOG.md](CHANGELOG.md) §一 发布记录 |
+
+> ⛔ **opt54 的 scx 只到「接口出现」**：`/sys/kernel/sched_ext` 的 `enabled` 实测 = 0，scx 调度类**未启用**。
+> **禁止在这台设备上 register 任何 scx 调度器** —— opt43 实测整机硬挂死 + PMIC 看门狗复位（见 CHANGELOG §三.3）。
 
 ## 快速开始
 
-**刷机（推荐 AK3）**：把 `GT5Pro-RMX3888-v1.1-opt50-AK3.zip` 丢进 KernelSU/Magisk 管理器刷入 ——
+**刷机（推荐 AK3）**：把 `GT5Pro-RMX3888-v1.1-opt54-AK3.zip` 丢进 KernelSU/Magisk 管理器刷入 ——
 自动刷内核 + 自动安装附加模块（`horae_once`、`quiet_logs`）✓
 
 **刷机（fastboot，只刷 boot_a）**：
 ```sh
-fastboot flash boot_a boot-v1.1-opt53-repacked.img
+fastboot flash boot_a boot-v1.1-opt54-repacked.img
 fastboot set_active a        # 必须！fastboot flash 会切槽
 fastboot reboot
 ```

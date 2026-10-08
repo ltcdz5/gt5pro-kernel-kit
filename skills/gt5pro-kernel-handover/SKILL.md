@@ -18,12 +18,16 @@ description: 接手真我 GT5 Pro（RMX3888 / RE5C37 / SM8650 "pineapple" / Andr
 1. ⛔ **只允许刷 `boot_a`**。永不碰 `init_boot`（root 在里面）、`devinfo`、`abl`、`xbl`、`vbmeta`、`super`、`userdata`。
 2. ⛔ **不碰 `boot_b`**。本机是虚 A/B（`ro.virtual_ab.enabled=true`）⇒ 换槽会连 `super` 的另一半旧系统一起起 ⇒ 数据风险。双槽方案已判死。
 3. ⛔ **不新增内核导出符号，也不允许导出符号消失**。这是三次砖的机制（见 `references/闸门与判据.md`）。
-4. ⭐⭐ **刷前必须过【两道】闸门**。`gate_new_exports.py` 只能抓"符号增减"，
-   **抓不到「符号还在、CRC 变了」—— opt15 就是闸门全绿、刷进去 9 个模块挂掉、WiFi/蓝牙全废**。
-   必须配 `tools/gate_vko_crc.py`（厂商 493 个 `.ko` 的 `__versions` 真值比对）。
-   **通过标准：闸门1 = 命中厂商 `新增=0` 且 `消失=0`**（导出集差异 ∩ 厂商引用名 = ∅；
+4. ⭐⭐ **刷前必须过【三道】闸门**。`gate_new_exports.py` 只能抓"符号增减"，
+   **抓不到「符号还在、CRC 变了」—— opt15 就是闸门全绿、刷进去 9 个模块挂掉、WiFi/蓝牙全废**；
+   而闸门2 又看不见「**符号缺失**」（opt53 的 `oplus_bsp_sched_ext` 缺 7 个符号就是它漏掉的），
+   也拦不住 opt51 那种「**493/493 全坏**」的破坏性配置改动。
+   ① `tools/gate_new_exports.py` ② `tools/gate_vko_crc.py` ③ **`tools/gate_all_modules.py`（全量厂商模块审计）**。
+   **通过标准：闸门1 = 命中厂商 `新增=0` 且 `消失=0`，且 `遮蔽=0`**（导出集差异 ∩ 厂商引用名 = ∅；
    ⚠️ `新增=N 消失=M` 是原始计数，**不要求为 0**；早期文档的"新增=0 消失=0"是过时的严格模式，已作废）；
-   **闸门2 = `会拒绝装载的模块 = 1` 且那 1 个是 `bluetooth.ko`。**
+   **闸门2 = `会拒绝装载的模块 = 0`**（opt49-crc 起蓝牙 `sk_filter_trim_cap` 已定点覆写抹平；更早的版本是 1 = `bluetooth.ko`）；
+   **闸门3 = 全量 493 模块审计 `VERDICT: PASS`**（缺失=0 且 CRC 不符=0）；
+   其**符号全集 = 三者并集 = 内核导出 ∪ 厂商模块导出 ∪ 外部参考**（opt54 实测 = **21116**）。
 5. ⛔ **不魔改 EAS / CPUFreq / cpuidle / 社区调度器**；不做游戏向调优（机主明确不打游戏，要"均衡"）。
 6. ⛔ **不提议测/换 zram 算法或换页**——由机主自己的模块控制。
 7. ⛔ **不用 SUSFS**；不做 `prjname`/机型伪装去套厂商云控参数（机主已拒，不要重提）。
@@ -38,25 +42,31 @@ description: 接手真我 GT5 Pro（RMX3888 / RE5C37 / SM8650 "pineapple" / Andr
 13. ⛔ **不要在手机上跑全盘 `grep`**（2026-10-02 踩过：负载飙到 1.7e10、手机卡到要重启）。设备侧搜索一律限定目录。
 14. ⛔ **`/proc/cmdline` 含本机序列号与 `oplus.avbkeysha256`**；`rooter-backups/` 含 SN/米家 key/MAC。**整串不得外发**，对外只给单个必要文件。
 
-## 现役状态（2026-10-03 03:2x 快照，细节见 references/现状与产物.md）
+## 现役状态（2026-10-08 快照，细节见 references/现状与产物.md）
 
 | 项 | 值 |
 |---|---|
-| 内核 | **`6.1.141-android14-11-o-ltcdz5-v1.1-opt47`** / banner **`#74-ack304-v1.1-opt47`** |
-| 归档刷入件 | `images/boot-v1.1-opt47-repacked.img` md5 **`4ad29d109c597f018e30f2f908d5031a`**（201,326,592 B） |
-| 裸内核 | 构建产物 `out/arch/arm64/boot/Image` md5 `f7dcb69f3828a62f95687bc4da262195`（38,095,360 B） |
-| 源码 | WSL `/home/builder/kwork/cctv18/repo/local/kernel_workspace/common`，**分支 `opt47` / HEAD `5ddf8408b29a`**（tag 于发布时打） |
-| 规模 | **1 个文件**（`drivers/i2c/i2c-core-base.c`，+23/−4，纯函数体） |
-| 回退首选 | **opt42（已发布版）** `images/boot-v1.1-opt42-repacked.img` md5 `4bd362b0a17513474de217ea9beb8ae3`；次选 opt45-p2 `4edea16d3046577b83dd3c8cf82be154` |
+| 内核 | **`6.1.141-android14-11-o-ltcdz5-v1.1-opt54`** / banner **`#75-ack304-v1.1-opt54`** |
+| 归档刷入件 | `images/boot-v1.1-opt54-repacked.img` md5 **`cbd8a8297bc0eca55cc66baba571dba0`**（201,326,592 B） |
+| 裸内核 | `Image.opt54` md5 **`bbbc2cc39c5007795796f9ae0abc4d7f`**（39,336,448 B） |
+| 源码 | WSL `/home/builder/kwork/cctv18/repo/local/kernel_workspace/common`，**分支 `opt54` / HEAD `77b4ed9d804f2a16a2966b46bb5c8f088b33eb42`**（已推送；tag 于发布时打） |
+| 规模 | **4 文件 +50/−8，另新增 1 文件**（新增 `kernel/sched/hmbird_export.c`；改 `kernel/sched/ext.c`、`ext.h`、`kernel/sched/Makefile`、`scripts/setlocalversion`） |
+| 回退首选 | **opt53** `images/boot-v1.1-opt53-repacked.img` md5 `f927d8a259f0fad033e6c9b283066ae7`；更早 **opt50** `4a2829cf415756107d3785157e7289cd` |
+| AK3 | `images/GT5Pro-RMX3888-v1.1-opt54-AK3.zip` md5 **`e942c4fa81c2f94d411162a51bb8debf`**（含 horae_once / quiet_logs 自动安装） |
 
-> 🔴 **权威值只看两处**：`README.md §9（成品与回退）` 与 `CHANGELOG.md §一（发布记录）`。
-> 本表是**快照**（2026-10-04 21:xx），任何文档与本表冲突时以那两处为准。
+> ⛔ **opt54 的 scx 只到「接口出现」**：`/sys/kernel/sched_ext` 已出现、厂商模块 `oplus_bsp_sched_ext.ko` 可装载，
+> 但 **`enabled` 实测 = 0，scx 调度类未启用**；**禁止在这台设备上 register 任何 scx 调度器**
+> —— opt43 实测整机硬挂死 + PMIC 看门狗复位（见下文「scx（风驰）」一节）。
+
+> 🔴 **权威值只看两处**：`README.md §现役与回退` 与 `CHANGELOG.md §一（发布记录）`。
+> 本表是**快照**（2026-10-08），任何文档与本表冲突时以那两处为准。
 > ⚠️ 2026-10-04 审计发现本表此前写「现役 opt37 / 回退 opt36」，**落后 10 个版本** —— 已更正。
+> ⚠️ 2026-10-08 再次审计：本表此前停在 **opt47**（落后 7 个版本）—— 已更正为 opt54。
 
 > **⚠️ 回退件已压缩（2026-10-03）**：为腾 C 盘，**历史镜像改成 `.img.gz`**（192MB → 约 16MB，12 倍）。
-> 保持**未压缩可直接刷**的只有 4 个：`boot-version1-opt37-repacked.img`（现役）、
-> `boot-version1-opt36-repacked.img`（回退首选）、`boot_a.img`（原厂）、`init_boot_a.img`（root 备份）。
-> 其余 25 个刷前必须先解压：
+> 保持**未压缩可直接刷**的 = **`boot-version1-opt36` 起、直到现役 `boot-v1.1-opt54` 的全部 `.img`（21 个，
+> 含现役 opt54 / 回退首选 opt53 / 更早 opt50）** + `boot_a.img`（原厂，最后防线）+ `init_boot_a.img`（root 备份）。
+> 其余 **25 个 `.img.gz`** 刷前必须先解压：
 > `wsl -d Ubuntu-24.04 -- bash -lc "gzip -d /mnt/c/Users/USERNAME/Desktop/gt5pro-kernel/images/<名>.img.gz"`
 > 详见 `images/README-回退件已压缩.txt`。
 >
@@ -84,10 +94,10 @@ description: 接手真我 GT5 Pro（RMX3888 / RE5C37 / SM8650 "pineapple" / Andr
 > `LOCALVERSION_AUTO=y`，`kernelrelease` 完全由该脚本决定；厂商把它粗暴改过 —— 真正的
 > scm 逻辑后跟 9 行冗余 `sed` 再一行写死 `echo`）。
 > 实测：`uname -r` 改了、`lsmod` 仍 621 ⇒ 版本串在 `same_magic()` 里被跳过（有 `__versions` 时），
-> 不影响厂商模块 CRC。⛔ 但每次改版本串后仍必须实测 `lsmod` = 621。
+> 不影响厂商模块 CRC。⛔ 但每次改版本串后仍必须实测 `lsmod` 不减少（opt54 实测 = **628**）。
 | KSU 模块（我们的） | `lru_gen_on` **v3**（开机后恢复 MGLRU=Y + min_ttl 1000）、 |
-| 双闸门（最终） | 闸门1 `新增=50 消失=1`、命中厂商 `新增=0 消失=0` ⇒ **PASS**；闸门2 会拒绝装载 **= 1**（`system_dlkm/bluetooth.ko`，`sk_filter_trim_cap` |
-| 刷后基线 | **`lsmod` 621**；非蓝牙装载失败 **0**；`disagrees` **5 条（全是 bluetooth，基线就不符，实测无害）**；`wlan0` UP；**真 oops 0**；`pstore` 0；**SSG `[ssg]`**；蓝牙 `state ON`/`crashed 0`；ping 正常 |
+| 闸门（最终，**三关**） | 闸门1 `新增=9 消失=0`、命中厂商 `新增=6 消失=0`、**遮蔽=0** ⇒ **PASS**；闸门2 会拒绝装载 **= 0**；**全量 493 模块审计 PASS**（缺失=0 / CRC不符=0；符号全集 = **21116** = 内核 ∪ 厂商模块 ∪ 外部参考）|
+| 刷后基线 | **`lsmod` 628**；`Unknown symbol` **0**；`disagrees` **0**（opt49-crc 起蓝牙 `sk_filter_trim_cap` 已定点覆写抹平）；**真 oops 0**；`Oops/BUG:/Kernel panic` **0**；`pstore` 0；**SSG `[ssg]`**；蓝牙 `state ON`/`crashed 0`；`WARNING` **17 条**（全属厂商模块 modprobe 重复注册）|
 | 镜像与模块包 | 逐文件大小 + md5 见 `images/清单.txt` |
 
 ⚠️ **⛔ 别刷 `boot-opt15-p13-repacked.img`**：那一版 `/proc/loadavg` 爆到 1.7e10（P16 已修）。
@@ -143,14 +153,16 @@ description: 接手真我 GT5 Pro（RMX3888 / RE5C37 / SM8650 "pineapple" / Andr
 ⚠️ `make Image` **不会刷新 `Module.symvers`**；⚠️ **必须 `export PATH=<clang17 路径>:$PATH`**
 （否则用系统 clang18）；⚠️ 若 PC 换过时间，先查 Clock skew，重编到 skew=0。
 
-**第 4 步：过两道闸门**（都必过，见铁律 4）
+**第 4 步：过三道闸门**（都必过，见铁律 4）
 ```
 # ★ 先看 CRC 影响面（改结构体/改原型后必做，能一眼看出"名字看不出来的牵连"）
 python3 tools/crc_diff.py <旧版 vmlinux.symvers> out/vmlinux.symvers
 #   rc=0 零变化 ｜ rc=1 有变化但不涉及厂商引用 ｜ rc=2 有变化且涉及厂商引用（危险）
-python3 tools/gate_new_exports.py out/vmlinux.symvers; echo "rc=$?"   # 判据：命中厂商 新增=0 消失=0
+python3 tools/gate_new_exports.py out/vmlinux.symvers; echo "rc=$?"   # 判据：命中厂商 新增=0 消失=0 遮蔽=0
 python3 tools/gate_vko_crc.py out/vmlinux.symvers \
-    ../vendor-ko/vendor_dlkm ../vendor-ko/system_dlkm; echo "rc=$?"    # 会拒载=1(bluetooth)
+    ../vendor-ko/vendor_dlkm ../vendor-ko/system_dlkm; echo "rc=$?"    # 会拒载=0（opt49-crc 起）
+# 闸门3：全量 493 模块审计（缺失 + CRC 不符，必须都为 0）
+python3 tools/gate_all_modules.py <内核树> ../vendor-ko/vendor_dlkm ../vendor-ko/system_dlkm; echo "rc=$?"
 ```
 ⛔ 调用方必须传参 + 看 rc + `|| exit 1`（旧脚本 `| tail -5` 是空过）。
 📌 2026-10-03 闸门第 5 次真救场：我跑 olddefconfig 打掉 `COMPAT` ⇒ 闸门2 报 **493 模块**（全部）。
@@ -170,7 +182,7 @@ RAM 引导（`fastboot boot`）**可选**；直接刷也行（电量 ≥15%，**
 
 **第 6 步：上机核验 —— 要查【功能状态】，不只是看有没有报错**
 ```
-lsmod 数量(621) / wlan0 UP / SSG [ssg] / /data f2fs / SELinux Enforcing / MGLRU
+lsmod 数量(628) / wlan0 UP / SSG [ssg] / /data f2fs / SELinux Enforcing / MGLRU
 pstore=0 / dmesg 真 oops=0 / 蓝牙 dumpsys state ON / ping 通
 ★ 改过哪条路径，就【功能性地跑一次】那条路径（例：改 ipset 就跑 ipset list/save；
   改 conntrack 就读 /proc/net/nf_conntrack；改 TCP 就 ping + 看连接）
@@ -198,9 +210,18 @@ skill 若需更新则同步到交接包并**逐文件 md5 校验**；`kernel-kit
 - ⛔ **不要在设备上做可能硬挂死的高危实验**（见下"已结案方向"里 scx 的教训）：
   高危实验前先确认恢复手段（看门狗能复位？pstore 能留现场？ramdump 可用？）。
 
-## ⛔ 已结案方向：**sched_ext / scx（风驰）在这台真我上不可用**（2026-10-03 两台实测，勿再投时间）
+## ⛔⛔ scx（风驰）：**调度器仍不可 register**（opt43 硬挂死）；opt54 只做到「接口出现 + 模块可装载」
 
-**结论**：框架编译完整，但**加载任何 scx 调度器都会硬挂死整机**（无 panic 现场、pstore 0、靠看门狗复位恢复）。
+> **2026-10-08 状态更新（opt54，第 4 步达成）**：厂商模块 `oplus_bsp_sched_ext.ko` **已能装载**（`lsmod` 实测 = 1，
+> `oplus_bsp_sched_ext 49152 0`），`/sys/kernel/sched_ext` **已出现**（含只读 `enabled = 0` / `switched_all = 0`）。
+> **但这只是「可装载 + 不崩」的最小可用面**：`enabled` 实测 = 0，**scx 调度类并未启用**；
+> `scx_get_md_info()` 是诚实的空实现（`*vaddr = 0; *size = 0;`）、`task_is_scx()` 恒 false、`iso_masks` 只做保守初始化
+> ⇒ **不是** OPPO hmbird 调度器的完整功能（完整功能需 `CONFIG_HMBIRD_SCHED` 底座 + `hmbird_sched_proc_main.c`，本树缺失）。
+>
+> ⛔ **绝对禁止在这台设备上 register 任何 scx 调度器** —— 见下方 opt42/opt43 两次实测：
+> **整机硬挂死 + PMIC 看门狗复位**。opt54 放开的只是「装载」，**没有**放开「启用」。
+
+**结论（2026-10-03 两台实测，仍然有效）**：框架编译完整，但**加载（register）任何 scx 调度器都会硬挂死整机**（无 panic 现场、pstore 0、靠看门狗复位恢复）。
 
 两台实测（都是同一棵树、同一台设备）：
 1. **opt42（原厂原样）**加载 scx_example_simple（调了 `scx_bpf_switch_all`）⇒ 硬挂死。
@@ -216,6 +237,7 @@ skill 若需更新则同步到交接包并**逐文件 md5 校验**；`kernel-kit
 - `scx_bpf_switch_all` 注释是**新 API**（带 `@into_scx`，:3335）但实现是**旧 API**（无参、只能 true，:3341）
 - `slim_walt.c` 被删（`ext.c:287` 与 `:2817` 只剩注释残迹）⇒ 利用率反馈没了
 - `/sys/kernel/sched_ext`、`scx_bpf_cpuperf_*`、`bpf_iter_num` 全无
+  （**其中 `/sys/kernel/sched_ext` 自 opt54 起已由我们补上** —— 出厂内核没有它；另两个仍无）
 - git 查证：ext.c 全 refs 仅 2 提交（导入 `a6ad4183cd88` + revert `7a244ff18620`），
   **完整版（含 slim_walt / into_scx 实参）在本仓任何 ref 都不存在**——导入前就被剥离了
 
@@ -223,12 +245,26 @@ skill 若需更新则同步到交接包并**逐文件 md5 校验**；`kernel-kit
 **当前不具备 ramdump ⇒ 结案不做。** 若将来拿到 ramdump，优先看 `scx_ops_enable` 里
 `ops.init`(:2842) / 静态位 × 热插拔 这两处。
 
+**第 4 步（opt54）到底做了什么、没做什么**
+- **做了什么**：① 新增 `kernel/sched/hmbird_export.c` 导出中心（10 个导出，全部 `EXPORT_SYMBOL_GPL`）；
+  ② `__scx_ops_enabled` 由 static key 改成 `atomic_t`（厂商注释要求它定义在 CONFIG_HMBIRD_SCHED 之外；
+  这一步同时解决了首版的 `duplicate symbol: __scx_ops_enabled` 链接错误）；③ `ext.c` 末尾注册 `/sys/kernel/sched_ext` kset。
+- **没做什么**：**enable 路径一行没动** ⇒ 上面「register 就硬挂死」的结论**一条都没被推翻**。
+- ⛔ **内核不得再导出 `get_hmbird_cpu_exclusive`**：它虽在 sched_ext 的缺符号清单里，但**由厂商模块
+  `oplus_bsp_game_opt.ko` 自己导出**（readelf 实证 `__ksymtab_gpl_get_hmbird_cpu_exclusive`，实现读它自己的
+  `es4g_cpumask_record`，与我们的 `iso_masks` 无关）。内核若也导出同名符号 ⇒ **遮蔽**（闸门1 硬禁止，
+  opt6/test_task_ux 的致砖机制）⇒ **不导出**。设备实测：先 `insmod oplus_bsp_game_opt.ko`（modules.load 第 225 行，
+  早于 sched_ext 的第 239 行）⇒ sched_ext 的未知符号从 **8 个降到 7 个**。
+- 那 7 个符号（`iso_masks`/`ext_module_loaded`/`task_is_scx`/`scx_get_md_info`/`non_ext_task`/`hmbird_dir`/`__scx_ops_enabled`）
+  是 **GLOBAL（强）未定义引用，不是 weak** ⇒「内核不导出它 ⇒ 拿 NULL 走跳过分支」这条**不成立**，不导出就**根本装载不了**；
+  且**全量 493 个 `.ko` 扫描证明只有 `oplus_bsp_sched_ext.ko` 引用这 7 个名字** ⇒ 导出它们不会翻动别的模块的守卫。
+
 **本机实际在跑的游戏/调度内核组件（全部正常，我们从未动过，也不要动）**：
 `mpam_game`（按 PID 分优先级组）、`oplus_bsp_frame_boost`、`oplus_bsp_sched_assist`、
 `oplus_network_game_first`、`oplus_bsp_task_sched / qos_sched / schedinfo / sched_penalty`、
 `sched_walt` + `cpufreq_uag`（当前 governor 就是 uag）。
 
-## 近几版台账索引（2026-10-03）
+## 近几版台账索引（2026-10-08）
 
 | 版本 | 内核改动 | 关键结论 |
 |---|---|---|
@@ -237,6 +273,17 @@ skill 若需更新则同步到交接包并**逐文件 md5 校验**；`kernel-kit
 | v1.1-opt40 | CVE-2026-31446 ext4 sysfs UAF | **首次通过"改结构体"的闸门**（ext4 导出 0 个符号） |
 | v1.1-opt41 | AF_PACKET 时间戳 cmsg 越界读 | `sock_rmem_free` 由 `t`→`T`（生效直接证据） |
 | v1.1-opt42 | USB `bRequestType` 位域误判 + LZ4 armv8 `Permtable` 越界读 | 前者 **ADB 自证**；后者反汇编证实；均为 latent→实测 |
+| ⛔ v1.1-opt43 | scx enable 实验（注释掉 `scx_switch_all_req`） | **整机硬挂死 + PMIC 复位** ⇒ **scx 调度器禁止 register**（详见上节） |
+| ⛔ v1.1-opt44 | gov_override | **未交付**（否证） |
+| v1.1-opt45 | 防 sched_ext 硬挂死 + ACK 探针 | 探针版（T0，**非发布**），已被 opt47 取代 |
+| ⛔ v1.1-opt46 | BBRv3 移植 | **闸门2 判死**：367/493 个模块会拒载 |
+| v1.1-opt47 | ACK 10-02 两条 i2c 修复（注册竞态 / 失败路径补漏） | 已发布（观察期 4.6 h，机主决定提前） |
+| v1.1-opt48 | f2fs merged-IPU 补漏 + i2c 注册竞态 + rpmsg UAF + arm64 `VM_FAULT_RETRY_VMA` + pKVM（13 文件 +122/−38） | 闸门1 新增 0 / 消失 0；闸门2 = 1（仅 bluetooth）；未建 Release |
+| v1.1-opt49-crc | 蓝牙 `sk_filter_trim_cap` CRC 定点覆写（0x43b2b8f0→0xf5845708） | **首次把闸门2 从 1 压到 0**；`lsmod` 判据 621→**628**；`disagrees` 变真 0；**AK3 自本版起提供** |
+| v1.1-opt50 | 5 个 OPPO 厂商钩子回移 + HZ 300→250 + 蓝牙 CRC 重应用 | **`oplus_bsp_game_opt` 由「被拒载」变「可装载」** |
+| ⛔ v1.1-opt51 / opt52 | 关 KASAN/KFENCE/DEBUG_LIST/SCHED_DEBUG/SCHEDSTATS/BUG_ON_DATA_CORRUPTION | **否证**：大量模块受影响、`__list_add_valid`/`__list_del_entry_valid` 等关键导出消失 ⇒ 这 6 项被厂商模块锁死在 ABI 上，**不可关** |
+| v1.1-opt53 | hmbird/get_util/tick_nohz 五个钩子 + 导出 `__scx_ops_enabled` | sched_ext 缺符号**定案**（真正缺 7 个，不是 19 个；`get_hmbird_cpu_exclusive` 由 game_opt 提供） |
+| ★ v1.1-opt54 | **sched_ext/hmbird 私有栈回移**：导出中心 + `__scx_ops_enabled` 去 static-key + `/sys/kernel/sched_ext` kset 注册 | **`oplus_bsp_sched_ext.ko` 可装载 + `/sys/kernel/sched_ext` 出现**；⛔ `enabled`=0，**仍禁 register 任何 scx 调度器** |
 
 详细见 `kernel-kit/` 下各 `vX.X-optNN-上机核验-*.md` 与 `档案/事故与更正/事故-结构体CRC影响面不可穷举-20261003.md`。
 
