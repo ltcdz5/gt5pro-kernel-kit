@@ -472,3 +472,42 @@ boot_progress_start=12.87s），并与 opt9 一起**验证了这条裁剪规则*
 
 **仍未做**：oplus_bsp_sched_ext（缺 19 个 hmbird/walt/scx 私有符号）与 HMBIRD_SCHED 底座 ⇒ 单独立项；KASAN/KFENCE/DEBUG_LIST/SCHED_DEBUG/SCHEDSTATS/BUG_ON_DATA_CORRUPTION 与出厂一致 ⇒ 按安全线默认不动。
 
+## 十、v1.1-opt53（现役；hmbird 钩子 + sched_ext 缺符号定案）
+
+| 项 | 值 |
+|---|---|
+| 版本串 | 6.1.141-android14-11-o-ltcdz5-v1.1-opt53 |
+| 镜像 | boot-v1.1-opt53-repacked.img，md5 f927d8a259f0fad033e6c9b283066ae7 |
+| 回退首选 | boot-v1.1-opt50-repacked.img，md5 4a2829cf415756107d3785157e7289cd |
+| 上机核验 | HZ=250 ✓、蓝牙装载 ✓、Oops/BUG/panic 全 0 ✓；gameopt 按需加载（insmod 实测可装）✓ |
+
+**本轮改动（在 opt50 基础上）**
+1. 回移 hmbird/get_util/tick_nohz 五个厂商钩子：android_vh_hmbird_update_load、android_vh_hmbird_init_task、android_vh_hmbird_update_load_enable、android_vh_get_util、android_vh_tick_nohz_idle_stop_tick（原型取自 reigadegr/sun_action::patchs/6.1/6.1sched_ext.diff 与 OPPO 官方 hooks 头）。
+2. 导出 __scx_ops_enabled（kernel/sched/ext.c）。
+
+**关键否证与更正（重要）**
+- **opt51（关 KASAN/KFENCE/DEBUG_LIST/SCHED_DEBUG/SCHEDSTATS/BUG_ON_DATA_CORRUPTION）已被否证**：全量 493 个厂商模块**全部出问题**（__list_add_valid 消失，132 个模块依赖；__list_del_entry_valid 消失，103 个模块依赖；全模块 CRC 漂移）⇒ 这 6 项被厂商模块锁死在 ABI 上，**不可关**。配置已 revert（提交 f569055249de）。
+- **流程坑（记录在案）**：opt51 的破坏性配置**已被提交**，用 git checkout 无法回滚 ⇒ 导致 opt52 是"关掉调试件"的错误构建（493 全坏）；必须用 git revert 才正确。教训：破坏性配置改动不要先提交，或提交后必须 revert。
+
+**oplus_bsp_sched_ext 装载失败的确切缺符号（设备 dmesg 实测）**
+```
+Unknown symbol iso_masks
+Unknown symbol ext_module_loaded
+Unknown symbol get_hmbird_cpu_exclusive
+disagrees about version of symbol __scx_ops_enabled   （类型不同 ⇒ CRC 不符）
+Unknown symbol task_is_scx
+Unknown symbol scx_get_md_info
+Unknown symbol non_ext_task
+Unknown symbol hmbird_dir
+```
+⇒ 这些是 **OPPO 自己 sched_ext/hmbird 实现里的数据结构与函数**（不是简单加导出能解决的）⇒ 要让 scx 真正可用，必须**整套回移 OPPO 的 sched_ext + hmbird 私有栈**。这也是"cpufreq 调速器里没有 scx / /sys/kernel/sched_ext 不存在"的根因。
+
+**可用的回移来源（已核实）**
+- reigadegr/sun_action :: patchs/6.1/6.1sched_ext.diff（264,705 字节，**完整补丁**：含钩子声明、调用点、导出、hmbird 全套）
+- Suxiaoqinx/scxe（完整模块源码：ext.c / hmbird_gki/scx_main.c / scx_sched_gki.c / scx_hooks.h / scx_util_track.c …）
+- aa123330/test_s :: sched_ext/hmbird/hmbird_misc.c
+- 真我官方 vendor 源码 realme-kernel-opensource/realme_15-P4_5G-AndroidV-vendor-source :: vendor/oplus/kernel/cpu/sched_ext/（经 API 取到的是 LFS 指针，需 git clone）
+- 一加 PKG110（Ace 5，SM8650/ColorOS 16）源码包同样含该目录
+
+**下一步（第 4 步正式立项）**：以 6.1sched_ext.diff 为主线做整套回移；验收 = `lsmod | grep oplus_bsp_sched_ext` = 1 且 `/sys/kernel/sched_ext` 出现。
+
