@@ -552,3 +552,93 @@ Unknown symbol hmbird_dir
 
 **下一步（第 4 步正式立项）**：以 6.1sched_ext.diff 为主线做整套回移；验收 = `lsmod | grep oplus_bsp_sched_ext` = 1 且 `/sys/kernel/sched_ext` 出现。
 
+## 十一、v1.1-opt54（现役；OPPO sched_ext/hmbird 私有栈回移 —— 第 4 步达成）
+
+| 项 | 值 |
+|---|---|
+| 版本串 | 6.1.141-android14-11-o-ltcdz5-v1.1-opt54（banner #75-ack304-v1.1-opt54） |
+| 裸内核 | Image.opt54，md5 bbbc2cc39c5007795796f9ae0abc4d7f |
+| 镜像 | boot-v1.1-opt54-repacked.img，md5 cbd8a8297bc0eca55cc66baba571dba0（201,326,592 B） |
+| 回退首选 | boot-v1.1-opt53-repacked.img，md5 f927d8a259f0fad033e6c9b283066ae7（已核 md5） |
+| 上机 | 2026-10-08 19:2x 刷 boot_a（只刷 boot_a），槽位 _a |
+
+**目标**：让厂商模块 `oplus_bsp_sched_ext.ko` 能装载，并使 `/sys/kernel/sched_ext` 出现。
+
+**本轮改动（4 文件 +50 −8，另新增 1 文件）**
+
+1. **新增 `kernel/sched/hmbird_export.c`（导出中心）** —— 按 reigadegr/sun_action::patchs/6.1/6.1sched_ext.diff 的 hub 文件回移，并补齐 include 后可单独编译：
+   `slim_for_app`、`scx_sched_rq_stats`(+DEFINE_PER_CPU)、`scx_irq_work_lastq_ws`、
+   `ext_module_loaded`、`hmbird_dir`、`non_ext_task`、`__scx_ops_enabled`、
+   `iso_masks`、`scx_get_md_info()`、`task_is_scx()`（共 10 个导出，全部 EXPORT_SYMBOL_GPL）。
+   `iso_masks` 由 `arch_initcall` 初始化为 little=big=all / partial=exclusive=空 ⇒ 厂商 governor 永不隔离 CPU（保守默认），且绝不解引用 NULL。
+2. **`kernel/sched/ext.c` + `kernel/sched/ext.h`：`__scx_ops_enabled` 由 static key 改为 `atomic_t`**
+   —— 厂商注释原文「These variables must be defined outside of CONFIG_HMBIRD_SCHED MICRO」；
+   定义搬到 hub，ext.c 改为引用；`scx_enabled()` 由 `static_branch_unlikely` 改为 `atomic_read`；
+   enable/disable 处改 `atomic_set`。**这一步同时解决了 opt54 首版的 `duplicate symbol: __scx_ops_enabled` 链接错误**
+   （旧做法是 ext.c 与 hub 各定义一次）。
+3. **`kernel/sched/ext.c` 末尾新增 `/sys/kernel/sched_ext` 的 kset 注册**（上游风格）：
+   `kset_create_and_add("sched_ext", NULL, kernel_kobj)` + 只读属性 `enabled` / `switched_all`。
+   —— 出厂内核**没有**这个目录（opt43 否证档已记录「无 /sys/kernel/sched_ext」），本版把它补上。
+4. **`kernel/sched/Makefile`**：`obj-y += hmbird_export.o`。
+5. `scripts/setlocalversion` → `v1.1-opt54`。
+
+**关键决策（两条，都有实测证据）**
+
+- **不导出 `get_hmbird_cpu_exclusive`**：它虽在 sched_ext 的缺符号清单里，但**由厂商模块 `oplus_bsp_game_opt.ko` 自己导出**
+  （readelf 实证：`__ksymtab_gpl_get_hmbird_cpu_exclusive`，`GLOBAL FUNC get_hmbird_cpu_exclusive`，20 字节，
+  实现读它自己的 `es4g_cpumask_record`，与我们的 `iso_masks` 无关）。
+  内核若也导出同名符号 ⇒ **遮蔽**（闸门1 硬禁止，opt6/test_task_ux 的致砖机制）⇒ 因此不导出。
+  设备实测：先 `insmod oplus_bsp_game_opt.ko`（modules.load 第 225 行，早于 sched_ext 的第 239 行），
+  sched_ext 的未知符号从 **8 个降到 7 个** —— 这条符号由 game_opt 提供。
+- **7 个符号都是 GLOBAL（强）未定义引用，不是 weak**：readelf 逐条核对 sched_ext.ko 的 `st_info` 绑定
+  （`iso_masks`/`ext_module_loaded`/`task_is_scx`/`scx_get_md_info`/`non_ext_task`/`hmbird_dir`/`__scx_ops_enabled`
+  全部 `GLOBAL`），所以「内核不导出它 ⇒ 拿 NULL 走跳过分支」这条不成立 —— 它**根本装载不了**（设备 dmesg：
+  `Unknown symbol ... (err -2)`）。且**全量 493 个 .ko 扫描证明只有 `oplus_bsp_sched_ext.ko` 引用这 7 个名字**
+  ⇒ 导出它们不会翻动任何别的模块的守卫，不存在 opt6 式活锁面。
+
+**闸门（刷机前三关全过）**
+
+| 闸门 | 命令 | 结果 |
+|---|---|---|
+| 全量 493 模块审计 | `python3 _audit/audit_all.py`（= kit `gate_all_modules.py` + `--extra-exports refs/mod-exports-622mods-4623.txt`） | **PASS**：解析 493 个模块，有问题 = 0（缺失=0 / CRC不符=0）；符号全集 = 21116（内核 ∪ 厂商模块 ∪ 外部参考） |
+| 闸门1 导出对账 | `gate_new_exports.py out/vmlinux.symvers` | 新增=9 消失=0 ｜ **遮蔽=0** ｜ 命中厂商新增=6（= 本次刻意补的强引用，见上） |
+| 闸门2 会拒绝装载 | `gate_vko_crc.py out/vmlinux.symvers <两个 vendor-ko 目录>` | **0**（连蓝牙基线 `sk_filter_trim_cap` 也已被定点覆写抹平） |
+
+> 闸门1 基准：`/home/builder/opt5-baseline/Module.symvers` 在本机已丢失，本版用**设备现役 opt53 的
+> /proc/kallsyms 导出集**（`__ksymtab_*`，剔除模块符号，共 **15474** 条，与改动前 out/vmlinux.symvers 的
+> 15474 行逐数吻合）作为基准 —— 这是真值来源，非自证。
+
+**CRC 定点覆写（新增 2 条，均附「无真实 ABI 差异」证据）**
+
+`tools/patch_crc_targeted.py` 增补两条：
+
+- `iso_masks` 0xaee9c24f → 0xcb6a4c44 —— 反汇编 sched_ext.ko 证明它按 **4 个内嵌 cpumask 直接偏移**访问
+  （exclusive@0x00 / partial@0x08 / big@0x10 / little@0x18，单次 `ldr`，无指针解引用）⇒ 与我们的
+  `cpumask_var_t`（CPUMASK_OFFSTACK=n, NR_CPUS=32）布局逐字段一致；CRC 差异只来自 genksyms 对匿名结构体成员名的展开。
+- `task_is_scx` 0x61658a4e → 0xb3071c68 —— 原型 `bool (struct task_struct *)`：纯指针入参 + 标量返回；
+  模块把它作为 `hmbird_ops_t` 的**第 0 个函数指针**注册给 `register_hmbird_sched_ops`（反汇编实证 `str x8,[x0]`），
+  签名逐位一致；CRC 差异只来自 genksyms 对 `struct task_struct` 定义可见性的展开。
+
+**上机核验（2026-10-08 19:2x）**
+
+| 验收项 | 实测 |
+|---|---|
+| ① `lsmod \| grep oplus_bsp_sched_ext` | **= 1**（`oplus_bsp_sched_ext 49152 0`）|
+| ② `/sys/kernel/sched_ext` | **存在**，含 `enabled = 0` / `switched_all = 0` |
+| ③ 493 模块审计 | PASS（缺失=0 / CRC不符=0）|
+| ④ 蓝牙 / 告警 | 蓝牙相关模块（bluetooth/hci_uart/btqca/btbcm/rfcomm/hidp/btsdio）全装载；`Oops/BUG:/Kernel panic` = **0**；`Unknown symbol` = **0**；`disagrees about version` = **0**；lsmod = 628 |
+| 装载顺序 | `insmod oplus_bsp_game_opt.ko` → `insmod oplus_bsp_sched_ext.ko`，两条 rc=0 |
+
+> 启动日志里 17 条 `WARNING` 全部来自**厂商模块的 modprobe**（`Comm: modprobe`：`fs/sysfs/group.c:61` 重复属性组 ×1、
+> `fs/proc/generic.c:377` 重复 proc 项 ×6 等），与本次改动无关（我们没注册任何 proc 项，且 sysfs 目录唯一）。
+
+**遗留与边界（重要，勿越界）**
+
+- **不要在这台设备上 register 任何 scx 调度器**：opt43 实测 = 整机硬挂死 + PMIC 看门狗复位（详见 §三.3）。
+  本版只让**模块可装载 + 接口目录出现**，`enabled` 实测为 0，即 scx 调度类**未被启用**。
+- `scx_get_md_info()` 是**诚实的空实现**（`*vaddr = 0; *size = 0;`，消费方按 0 跳过快照）；
+  `task_is_scx()` 返回 false；`iso_masks` 只做保守初始化。⇒ 这是「可装载 + 不崩」的最小可用面，
+  **不是** OPPO hmbird 调度器的完整功能（完整功能需要 `CONFIG_HMBIRD_SCHED` 底座与 `hmbird_sched_proc_main.c`，
+  后者本树缺失，且整树回移会因 struct 改动造成 CRC 成批漂移 —— 见 §三.7 的通用硬约束）。
+- 厂商模块**开机不自动装载**（设备实测 `dmesg` 里 game_opt/sched_ext 的 modprobe 计数 = 0，opt53 亦然），
+  属 ROM 既有行为；验收按 `insmod` 口径。
