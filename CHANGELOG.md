@@ -781,3 +781,13 @@ Unknown symbol hmbird_dir
 > "消费方按 0 跳过快照" —— **不成立**。厂商模块 `hmbird_misc_init` @0x27ac 是 `cbz x8, <brk #0x800>`，
 > vaddr==0 直接 **BUG()**。（opt54 没炸是因为 `sched_ext_init` 开头读 `current->sched_prop`，
 > insmod 时为 0 ⇒ `hmbird_misc_init` **整段没跑**。）
+
+### 推送记录（kit 仓库）
+
+| 提交 | 内容 | 远端 |
+|---|---|---|
+| 825b4e8 | opt55 台账：新增 §十二 + 更正 §十一 一条错记录 + `patch_crc_targeted.py` 的 iso_masks 条目更新 | origin/master（ltcdz5/gt5pro-kernel-kit）**已推** |
+| （本条提交） | 推送记录本身 | 同上 |
+
+> 内核树 `kernel_workspace/common` 本轮提交 `9254c552d5f8`（tag opt55）**仅本地，未推** —— 与 opt54（`5fa4dc9c`）同样处理。
+> 本轮 **未刷机**：三关证据已交，按安全线等确认。
