@@ -839,12 +839,13 @@ Unknown symbol hmbird_dir
 
 ## 十五、第5步c · 风驰结构体对齐实验（opt59，2026-10-09）
 
-**结论：上一轮"硬阻塞"判断被推翻** —— "加字段向出厂对齐"成立 ✓
+> ⚠️ **本节曾于同日被写错并推送（commit eef415a），此处为更正版。** 错在把"打过定点覆写后的值"当成了"自然值"。
 
-- 树内提交 `bb7d854291b7`（opt59，父 `006e434ad3ad` opt58）
-- **`task_is_scx` 自然 CRC = `0xb3071c68` = 厂商期望值** ✓（**无需定点覆写**）
-- `struct sched_ext_entity` **逐字段与出厂一致**（`sched_prop`@168、`top_task_prop`@176、`running_at`@248、`gdsq_idx`@256；sizeof 264=264 ✓）
-- hub 其它导出亦全部对上厂商期望：`hmbird_dir`=0x947ca90f、`non_ext_task`=0xfd0701e9、`__scx_ops_enabled`=0x85f027ab、`iso_masks`=0xcb6a4c44 ✓
-- **唯一剩余结构缺口**：`struct scx_dispatch_q` 缺 `last_consume_at`@80、`is_timeout`@88 ⇒ 正对应块2 未落地的 2 个 `consume_hmbird_global_dsq` 调用点
-- 意义：**向出厂布局对齐不破 493 模块 ABI** ⇒ "全套风驰"架构上可行 ✓
-- 报告：`档案/性能功耗/第5步c-结构体对齐实验-20261009.md`（由 step5c 子代理撰写）
+**两条结论并存：假设被否证 ✗，但上一轮"硬阻塞"同时被推翻 ✓**
+
+1. **自然 CRC 不匹配** ✗：task_is_scx **自然值 = 0x61658a4e**（厂商期望 0xb3071c68）⇒ patch_crc_targeted.py 的那条覆写**仍然必需，不能删**。
+2. **机制（实测证明，非推断）**：本树 **genksyms 对结构体只发 tag 引用**（类型串实测 "t#bool task_is_scx ( s#task_struct * )"、"s#scx_iso_masks"），**从不展开成员表** ⇒ **结构体布局改动对全部 15,489 个 CRC 零影响**。微对照：scx_iso_masks 40→48 B ⇒ CRC 不变；改原型 ⇒ CRC 立即变。已在 tools/patch_crc_targeted.py 更正原先的错误注释。
+3. **"加字段会破 CRC ⇒ 硬阻塞"是误判** ✓：对齐**无害**（覆写 4/4 无 SKIP、三关全绿、导出集 15,489 逐名未变）且**必需** —— 厂商按出厂偏移访问：task->scx 必须在 task_struct 偏移 **3608**、scx->sched_prop 在 sched_ext_entity 偏移 **168**。**opt58 把 sched_prop 错放进 KABI slot2、把 scx 挤到 3616（错）**，opt59 已修正 ✓
+4. **字段对照**：struct sched_ext_entity 出厂 264 B/23 成员 → opt59 **264 B/23、偏移全一致**（新增 sched_prop@168、top_task_prop@176、running_at@248、gdsq_idx@256、dsq_sync_ux@260）；task_struct 出厂 195 字段 scx@3608 → opt59 **195 字段 @3608** ✓；scx_sched_task_stats 64 B 一致 ✓
+5. **遗留**：struct scx_dispatch_q 缺 last_consume_at@80 / is_timeout@88（出厂 96 B vs 本树 80 B）—— **不影响 CRC**，补它零风险，且是解锁块2 那两个 consume_hmbird_global_dsq 调用点的前提
+6. 提交：树 bb7d854291b7（opt59）；kit 436ced6（子代理报告）+ eef415a（错误版，本提交更正）；lab 3fd95d4/78452de。报告 档案/性能功耗/第5步c-结构体对齐实验-20261009.md
