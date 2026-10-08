@@ -449,3 +449,26 @@ boot_progress_start=12.87s），并与 opt9 一起**验证了这条裁剪规则*
 - 附件：`boot-v1.1-opt49-crc-repacked.img`（md5 `c40ee988904f2ea29720b0100b0ad124`）、`GT5Pro-RMX3888-v1.1-opt49-crc-AK3.zip`（md5 `13966f4df5e14c6289b4aff60b4380d9`）
 - **AK3（自本版起提供）**：包内带 `horae_once-v1.0.zip`、`quiet_logs-v1.0.zip` 两个附加模块，刷内核后自动用 `ksud module install`（Magisk 回退 `magisk --install-module`）安装
 - **蓝牙实测（机主）**：opt49-crc 刷入后 `bluetooth / hci_uart / btqca / btbcm / rfcomm / hidp / btsdio` 全部装载、`disagrees about version` = **0**、**蓝牙耳机连接与使用正常** ✓（本轮修复的最终验收）
+
+## 九、v1.1-opt50（现役；厂商钩子回移版）
+
+| 项 | 值 |
+|---|---|
+| 版本串 | 6.1.141-android14-11-o-ltcdz5-v1.1-opt50 |
+| 镜像 | boot-v1.1-opt50-repacked.img，md5 4a2829cf415756107d3785157e7289cd（201,326,592 B）|
+| 回退首选 | boot-v1.1-opt49-crc-repacked.img，md5 c40ee988904f2ea29720b0100b0ad124 |
+| AK3 | GT5Pro-RMX3888-v1.1-opt50-AK3.zip（含 horae_once / quiet_logs 自动安装）|
+
+**本轮改动**
+1. 回移 5 个 OPPO 厂商钩子（android_vh_scx_select_cpu_dfl / android_vh_check_preempt_curr_scx / android_vh_scx_cpu_exclusive / android_vh_scx_consume_dsq_allowed / android_vh_scx_sched_lpm_disallowed_time），原型取自 OPPO/realme 官方源与社区补丁（Suxiaoqinx/scxe、oppo-source/android_kernel_oppo_sm8750、reigadegr/sun_action::patchs/6.1/6.1sched_ext.diff）。
+   - 效果：**oplus_bsp_game_opt 由"被拒载"变为"可装载"**（设备 insmod 实测 = 1），游戏场景的调度/频率干预恢复。
+   - 验收：刷机前比对 gameopt 的 124 个期望符号 ⇒ 缺失 0 / CRC 不符 0；5 个钩子 CRC 与模块期望值逐项一致。
+2. CONFIG_HZ 300 → 250（与出厂对齐；tick 更少、厂商模块时间换算一致）。
+3. 蓝牙 sk_filter_trim_cap CRC 定点覆写（延续 opt49-crc，构建后重新应用）。
+
+**上机核验（2026-10-08 18:1x）**：版本串 v1.1-opt50、槽位 _a、HZ=250、gameopt 可装载、蓝牙 state:ON、Oops/BUG:/Kernel panic/Unknown symbol/disagrees about version **全 0**。
+
+**过程坑（已修）**：① 首版构建被污染 —— skbuff.h 用 cp -a 还原后 mtime 早于目标文件，make 未重编，Image 内是"去垫片"的 0xe69729c9；touch 后重建恢复为 0x43b2b8f0 再定点覆写。② 构建脚本漏写 gki_defconfig ⇒ HZ 改动未生效；补上后 HZ=250。
+
+**仍未做**：oplus_bsp_sched_ext（缺 19 个 hmbird/walt/scx 私有符号）与 HMBIRD_SCHED 底座 ⇒ 单独立项；KASAN/KFENCE/DEBUG_LIST/SCHED_DEBUG/SCHEDSTATS/BUG_ON_DATA_CORRUPTION 与出厂一致 ⇒ 按安全线默认不动。
+
