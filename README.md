@@ -23,7 +23,7 @@
 | 台账（权威） | [CHANGELOG.md](CHANGELOG.md) §一 发布记录 |
 
 > ⛔ **opt54 的 scx 只到「接口出现」**：`/sys/kernel/sched_ext` 的 `enabled` 实测 = 0，scx 调度类**未启用**。
-> **禁止在这台设备上 register 任何 scx 调度器** —— opt43 实测整机硬挂死 + PMIC 看门狗复位（见 CHANGELOG §三.3）。
+> **禁止在这台设备上 register 任何 scx 调度器** —— opt43 实测整机硬挂死 + PMIC 看门狗复位（见 CHANGELOG §三.3）。  ← 机主已授权，风险自担；opt43 先例（硬挂死 + PMIC 复位）仍成立，须备好 fastboot 回退
 
 ## 快速开始
 

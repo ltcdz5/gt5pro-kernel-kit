@@ -567,7 +567,7 @@ Unknown symbol hmbird_dir
 
 > ⛔⛔ **醒目警示 —— 本版 scx 仅到「接口出现」**：
 > `/sys/kernel/sched_ext` 有了、`oplus_bsp_sched_ext.ko` 能装载了，但 **`enabled` 实测 = 0，scx 调度类并未启用**。
-> ⛔ **禁止在这台设备上 register 任何 scx 调度器**：opt43 实测 = **整机硬挂死 + PMIC 看门狗复位**（详见 §三.3）。
+> ⛔ **禁止在这台设备上 register 任何 scx 调度器**：opt43 实测 = **整机硬挂死 + PMIC 看门狗复位**（详见 §三.3）。  ← 机主已授权，风险自担；opt43 先例（硬挂死 + PMIC 复位）仍成立，须备好 fastboot 回退
 > 本版交付的是「**可装载 + 不崩**」的最小可用面，**不是** OPPO hmbird 调度器的完整功能。
 
 **目标**：让厂商模块 `oplus_bsp_sched_ext.ko` 能装载，并使 `/sys/kernel/sched_ext` 出现。

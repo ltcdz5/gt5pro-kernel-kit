@@ -55,7 +55,7 @@ description: 接手真我 GT5 Pro（RMX3888 / RE5C37 / SM8650 "pineapple" / Andr
 | AK3 | `images/GT5Pro-RMX3888-v1.1-opt54-AK3.zip` md5 **`e942c4fa81c2f94d411162a51bb8debf`**（含 horae_once / quiet_logs 自动安装） |
 
 > ⛔ **opt54 的 scx 只到「接口出现」**：`/sys/kernel/sched_ext` 已出现、厂商模块 `oplus_bsp_sched_ext.ko` 可装载，
-> 但 **`enabled` 实测 = 0，scx 调度类未启用**；**禁止在这台设备上 register 任何 scx 调度器**
+> 但 **`enabled` 实测 = 0，scx 调度类未启用**；**禁止在这台设备上 register 任何 scx 调度器**  ← 机主已授权，风险自担；opt43 先例（硬挂死 + PMIC 复位）仍成立，须备好 fastboot 回退
 > —— opt43 实测整机硬挂死 + PMIC 看门狗复位（见下文「scx（风驰）」一节）。
 
 > 🔴 **权威值只看两处**：`README.md §现役与回退` 与 `CHANGELOG.md §一（发布记录）`。
@@ -218,7 +218,7 @@ skill 若需更新则同步到交接包并**逐文件 md5 校验**；`kernel-kit
 > `scx_get_md_info()` 是诚实的空实现（`*vaddr = 0; *size = 0;`）、`task_is_scx()` 恒 false、`iso_masks` 只做保守初始化
 > ⇒ **不是** OPPO hmbird 调度器的完整功能（完整功能需 `CONFIG_HMBIRD_SCHED` 底座 + `hmbird_sched_proc_main.c`，本树缺失）。
 >
-> ⛔ **绝对禁止在这台设备上 register 任何 scx 调度器** —— 见下方 opt42/opt43 两次实测：
+> ⛔ **绝对禁止在这台设备上 register 任何 scx 调度器** —— 见下方 opt42/opt43 两次实测：  ← 机主已授权，风险自担；opt43 先例（硬挂死 + PMIC 复位）仍成立，须备好 fastboot 回退
 > **整机硬挂死 + PMIC 看门狗复位**。opt54 放开的只是「装载」，**没有**放开「启用」。
 
 **结论（2026-10-03 两台实测，仍然有效）**：框架编译完整，但**加载（register）任何 scx 调度器都会硬挂死整机**（无 panic 现场、pstore 0、靠看门狗复位恢复）。
