@@ -425,7 +425,7 @@ boot_progress_start=12.87s），并与 opt9 一起**验证了这条裁剪规则*
 ---
 
 
-
+## 七、2026-10-08 内核侧记录（opt49）
 - **opt49（已构建待刷；镜像 md5 f285f54b2af95af56677d96f96f1b377 / 201,326,592 B）**：保留 NTFS3_FS(+LZX_XPRESS)、SQUASHFS(+XZ)、CIFS；**撤掉 MODULE_FORCE_LOAD 与 KSM** —— 闸门2 实测这两项会改核心结构布局（struct module / struct mm_struct）⇒ 厂商模块 modversions CRC 全数失效（实测 621 个全不匹配），「改结构 = 砖」被闸门拦下；另定案厂商源码缺陷：net/l2tp/l2tp_core.c 调用全树无定义的 l2tp_session_inc_refcount（modpost undefined）⇒ defconfig 显式 # CONFIG_L2TP is not set / # CONFIG_PPPOL2TP is not set（运行时由厂商 l2tp_core.ko / l2tp_ppp.ko 提供）。闸门结果：**闸门2 = 仅 bluetooth.ko 不匹配（非蓝牙拒载 0）**；**闸门1（替代法）= 候选 15443 / 基线 15437 ⇒ 新增 6、消失 0、无遮蔽**（cifs_arc4_* / cifs_md4_* / dns_query，全部来自 CIFS+DNS_RESOLVER，均未被厂商模块导出）。
 
 ## 八、v1.1-opt49-crc（现役；蓝牙修复版）
