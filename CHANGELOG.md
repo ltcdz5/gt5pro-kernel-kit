@@ -930,3 +930,51 @@ SCRC（云控注入模块）的安装前置检查是「scaling_available_governo
 ### 交付/环境
 - SCRC v5.6 已装并生效 ✓（/data/adb/modules/scrc）；IMS_VAROS 已禁用（可逆）
 - 内核 = **opt60**（5fd7909866e0de04b8e46cd9b388cc2e，稳定运行数小时）；回退件齐备
+## 二十一、第14步 · 风驰全自动链路（2026-10-09 深夜）
+
+### 一、根因：为什么"必须手动"
+自动加载链的**头部**在我们自编内核上不被触发 ✗：
+~~~
+厂商 init/HAL（autochmod.sh / gameopt_hal_service）← 断在这里
+   ↓ 本应加载
+oplus_bsp_game_opt.ko     ← 实测每次重启都是 0，只有手动 insmod 才有
+   ↓
+oplus_bsp_sched_ext.ko    ← 它的 init 才注册 scx 调速器
+   ↓
+SCRC kmodule/service.sh 在等 game_opt ⇒ 也永不加载 ⇒ ctn_patch/opgs_daemon 不起
+   ↓
+COSA 想切 scx 也没有调速器可切
+~~~
+证据：`sched_assist` 一直自动在载（内置），而 `game_opt`/`sched_ext` 始终 0。
+
+### 二、解法：开机自愈脚本（已装，实测一次跑通）
+`/data/adb/service.d/99-fengchi.sh`（KSU 开机执行，幂等）：
+1. 等 `sys.boot_completed`
+2. 设官调总闸：`persist.sys.oplus.gameswitch.enable=1`、`oiface.enable=1`、`horae.enable=1`、`sys.oplus.hmbird.manager.enable=1`；`start oiface/horae/gameopt_hal_service-1-0/vendor.urcc-hal-aidl`
+3. 按依赖序补加载：`oplus_bsp_game_opt` → `oplus_bsp_sched_assist` → `oplus_bsp_sched_ext`
+4. 等 `/proc/game_opt` 后跑 OPGS：`ctn_patch.ko` + `opgs_daemon`（并提供兼容节点）
+5. 跑 SCRC 云控注入（幂等）
+日志：`/data/adb/fengchi-boot.log`
+
+实测（开机 53 秒后全自动）：
+~~~
+stack: game_opt=1 sched_assist=1 sched_ext=1 ✓
+opgs : ctn_patch=1 opgs_daemon=1 ✓
+调剂器: avail = ★scx★ walt uag … ✓
+官调 : gameswitch=1 oiface=1 orms=ORMS ✓
+/proc/game_opt 22 个节点；critical_task=UnityMain UnityGfxDevice ✓（第五人格识别正确）
+稳定性: Oops=0 BUG=0 panic=0 ✓
+~~~
+
+### 三、SC​RC v5.6 与 OPGS（关键第三方组件）
+- **SC​RC**（酷安@星海亦有岸 / `xhai-git/SCRC`）＝ **Oplus 云控注入**：往 COSA 的 `db_game_database` 注入 SM8650 共 **49 款游戏**的风驰配置
+- **OPGS**（SCRC 可选组件）＝ `ctn_patch.ko`（`vermagic 6.1.141 … modversions aarch64`，与我们的内核 modversions 段一致 ⇒ 可加载）+ `opgs_daemon`：用 `kallsyms_lookup_name` 映射 `critical_task`，补出 `/proc/game_opt/task_boost/critical_task_name`，守护进程把游戏关键线程名写进去
+- 安装注意：安装器会**检查冲突模块**（`IMS_VAROS`/`fas_rs`/`uperf`/`asoul_affinity_opt`/`SCENE`）；且会**问一次"是否安装 OPGS"**（音量上键 ✓ 手滑/脚本装会漏装 ⇒ 文件会留在 `kmodule/`，需手动补到 `kmodule/bin/`）
+
+### 四、IMS_VAROS（必须卸载）
+- 它是**『官方调度屏蔽模块』**：`system.prop` 把 `persist.sys.orms.name`/`oiface.feature`/`hardcoder.name` **清空**，并禁 `OrmsUrcc`/`OiFace`/**`GameOpt`**/**`COSA`** ⇒ **与风驰直接冲突**（SCRC 检测到即拒装）
+- **注意**：光改名/停用不够 —— 卸载后（`ksud module uninstall` + 重启）属性才恢复为 `ORMS` / `oiface:1f,oifaceim:ffffffff` / `oiface` ✓；且**目录改名会导致 KSU 管理器卸载失败**（按目录名认模块）✗
+- 卸载后：注入器立即恢复正常 ✓（对比：卸载前注入报 `无法打开 cosa database` ✗）
+
+### 五、当前结论
+**内核侧与厂商栈链路已全自动打通** ✓；"游戏启动 ⇒ 自动切 `scx`"这一步**待最终观察**（判据：游戏启动后 `/sys/devices/system/cpu/cpufreq/policy*/scaling_governor` 应变为 `scx`）
