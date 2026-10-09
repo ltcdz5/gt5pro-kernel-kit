@@ -1249,3 +1249,36 @@ opt78 实测（内核日志）：
 - 核心功能：**约 1~3 轮**（当前卡点已精确到函数内偏移）。
 - 之后：关闭路径（`scx_enable=0`）验证 1 轮；游戏/功耗实测 1 轮。
 - 发布纪律不变：对外镜像保持 `CONFIG_HMBIRD_SCHED_CORE=n`，实验内核仅验证期使用；回退件 opt60（`5fd7909866e0de04b8e46cd9b388cc2e`）。
+## 二十七、第17步续 · Stage AA~AG：一路挖到"实体从不释放"（2026-10-09 深夜～2026-10-10 凌晨）
+
+### 一、新增阶段一览
+| 阶段 | 内容 | 依据 |
+|---|---|---|
+| **AA** | `struct hmbird_rq` 改 `kzalloc` + 补 `prev_window_size` 指向 `srq->prev_window_size` + `get_hmbird_cpu_util()` 双判空 | 崩在 `get_cpus_max_util+0xcc`，故障地址 `0x100` ⇒ 解引用未清零字段 |
+| **AB** | `struct hmbird_entity` 改 `kzalloc`（`hmbird_pre_fork` + init_task 两处）| 原 `kmalloc` 且初始化列表**没有 `dsq_flags`** ⇒ 随机值 ⇒ 110 次 `ENQ_EXIST2` 告警 |
+| **AC** | 调速器恢复前判 `strlen(saved_gov[cpu])` | 错误退出时 `saved_gov` 为空 ⇒ `WARNING hmbird.c:3840` 刷屏 |
+| **AD** | `hmbird_ops_enable()` 内 8 个阶段打点（AD1~AD8）| 死锁场景取证 |
+| **AE** | `hmbird_free()` 判空 | 原无条件 `list_del_init(&get_hmbird_ts(p)->tasks_node)`，槽位为 NULL 时直接写坏内存 |
+| **AF** | 迭代器里 `pos->task` 先过 `virt_addr_valid()` 再解引用 | 故障地址 `0xde0` + `pstate` 带 `+PAN` ⇒ 读到用户态指针（链上挂着**其它迭代器的 cursor 节点**，`container_of` 当成实体）|
+| **AG** | ★把 `hmbird_free(tsk)` 接进 `kernel/fork.c: free_task()`★ | 全树搜索发现 `hmbird_free()` **零调用点** ⇒ 实体从不摘链/释放 ⇒ 链表上全是悬空 `task_struct` |
+
+### 二、当前精确结论（opt87 实测）
+~~~
+[49.474313] Internal error: Oops: 96000005
+[49.475068] pc : hmbird_ops_prepare_task+0x1c/0x180
+[79.761398] gh-watchdog: Causing a QCOM Apps Watchdog bite!
+~~~
+- 故障是 **level-1 translation fault** ⇒ `p` 是**内核地址但页面已归还**（悬空 task_struct）⇒ 说明链上**仍有**指向已释放任务的节点，Stage AG 尚未覆盖全部来源。
+- 已排除：空指针（Stage Y/AE 判空均未触发）、用户态指针（Stage AF 的 `virt_addr_valid` 已放行）、配置漂移（opt77 起配置从零生成）。
+- 下一步取证（已就绪）：在 `hmbird_free()` 里打印 任务名/是否已入链/调用来源，确认释放路径**是否真的在跑**；并核查 `hmbird_post_fork()` 与 `hmbird_free()` 的**入链/摘链配对**（例如 fork 失败路径、`hmbird_cancel_fork` 与 `free_task` 双路径）。
+
+### 三、今晚工程化沉淀（都可用）
+1. **取证三板斧**：① 内核日志面包屑（写 `/dev/kmsg`）② 启用阶段打点（AD1~AD8）③ 死锁时用"每 2 秒 dmesg 快照"落盘（死锁时其它 CPU 仍在跑）。
+2. **自动化**：`_audit/iter3.ps1` / `run8x.ps1`（闸门 → 重打包 → 刷机 → 等启动 → **失败自动回退 opt60** → 采集）。
+3. **构建纪律**：CRC 必须 4/4（否则判失败）；配置一律 `gki_defconfig` 从零生成；`make Image` 增量约 85~95 秒。
+4. **发布边界**：对外镜像保持 `CONFIG_HMBIRD_SCHED_CORE=n`；回退件 opt60（`5fd7909866e0de04b8e46cd9b388cc2e`）。
+
+### 四、进度判断
+- 今晚累计修复 **24 个阶段**（G→AG），每个都由落盘现场驱动。
+- 剩余：**1~3 轮**（当前卡点已精确到"实体释放路径未覆盖全部来源"）。
+- 之后：关闭路径验证 1 轮、游戏实测 1 轮。
