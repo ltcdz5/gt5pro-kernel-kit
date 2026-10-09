@@ -1313,3 +1313,44 @@ opt89（Stage AI 全量修复）实测内核日志：
 1. 核对 `hmbird_ops_enable()` 切换循环里对 rq 锁的使用与厂商 `oplus_bsp_sched_assist`（`oplus_tickpull_runnable_rt`）的钩子是否冲突（例如在持 rq 锁时触发唤醒路径）。
 2. 检查 `hmbird_setscheduler_prio()` 在 `SCHED_CHANGE_BLOCK` 内被调用时，是否会与厂商的 `android_rvh_try_to_wake_up` 钩子互相递归/重入。
 3. 可选：先把厂商 sched_assist 的 `tickpull` 特性临时关闭做对照实验，确认是否为其交互所致。
+## 二十九、第17步续 · Stage AJ~AM + 子代理审核双轮：平衡回调问题解决（2026-10-10 凌晨）
+
+### 一、本阶段新增
+| 阶段 | 内容 | 结果 |
+|---|---|---|
+| **AJ** | 试图在切换循环加逐任务诊断 | **未生效**（字符串替换未命中，只改了版本串）⇒ 教训 |
+| **AK/AK2** | 切换循环打印限流 | AK2 按**行号**改，生效 ✓ |
+| **AL** | ★在 `hmbird_check_class_changed()` 之后补 `__balance_callbacks(task_rq(p))`（enable + disable 两处）★ | **生效** ✓ ⇒ balance 回调冲突消失 ✓ |
+| **AM** | AD3 打印限流 + AD5 补花括号 | 生效 ✓ |
+
+### 二、子代理审核（两轮，只读）——价值极高
+**第一轮（opt90）抓到：**
+1. **Stage AH 根本没修好 AD3**（字符串替换未命中；`git show --stat` 只有 setlocalversion）⇒ 我改为**按行号重建** ✓
+2. **Stage AG 挂错调用点**：`free_task()` 也被 fork 失败路径（`delayed_free_task`）调用，而子任务的 `android_oem_data1[1]` 是**父任务实体的逐字节拷贝**（`arch_dup_task_struct`）⇒ `hmbird_free(子)` 会摘链并 kfree **父任务**的实体 ⇒ UAF。审核指出 sched_ext 的 `sched_ext_free` 挂在 `__put_task_struct`（fork.c:973）而非 `free_task` ⇒ 我据此移到 `__put_task_struct` ✓ + 加所有权兜底 ✓
+3. `virt_addr_valid` 判据无效（已 kfree 的 slab 仍在线性映射）⇒ 删除 ✓
+4. 用 `pahole` 证明 `0xDE0 = NULL->android_oem_data1[1]`（不是"用户态指针"）⇒ 修正了我此前的错误结论 ✓
+
+**第二轮（opt91/opt93）给出决定性机制：**
+- 内核注释 `core.c:2299-2304`：**"any call to check_class_changed() must be followed by a call to balance_callback()"**
+- 链条：`hmbird_check_class_changed()` → RT 任务的 `switched_from`（`rt.c:2632`）→ `queue_balance_callback()` 挂上 `rt_pull_head`；迭代器 `task_rq_unlock()` **不 drain**；循环 `preempt_disable()` 使本 CPU 无法清空 ⇒ 该 rq 下次加锁命中 `sched.h:1679` 的 `SCHED_WARN_ON`。
+- 最小修法 = **Stage AL** ✓（并指出 disable 循环同构需一并修 ✓）
+- 另指出：`ext.c` 同构但本树从未启用过 scx ops ⇒ "ext.c 安全"是假象 ✓
+
+### 三、里程碑（opt94 实测）
+- **平衡回调冲突消失** ✓：此前稳定的 `task_rq_lock+0x140` / `SCHED_WARN_ON` 崩溃**不再出现**。
+- 新前沿（换了地方）：
+~~~
+[173.268012] lr : android_rvh_set_task_cpu+0x7cc/0x9d0 [sched_walt]
+[173.268251] Kernel panic - not syncing: Oops - BUG: Fatal exception in interrupt
+~~~
+⇒ **厂商 WALT 钩子 `android_rvh_set_task_cpu` 自己 `BUG()`**：任务被换 CPU/换调度类时，WALT 的不变量被破坏（与此前 `walt.c:5158` 同源）。
+
+### 四、下一步方向
+1. 取该 BUG 的完整 Call trace 与 pc（本轮日志被 AD3/AD5 限流后可读性已改善）。
+2. WALT 是 `[permanent]` 模块（8 个使用者）⇒ 无法卸载做对照。
+3. 候选修法：① 在换类时**通知 WALT**（找它注册的 hook 或期望的 trace 点）；② 让 hmbird 任务**对 WALT 透明**（例如换类前先 `set_task_cpu` 到同 CPU，避免触发 `set_task_cpu` 路径）；③ 对照 `ext.c` 在 `__setscheduler_prio` 里对厂商钩子的处理。
+
+### 五、工程纪律（今晚血泪教训）
+- **任何"字符串替换式"补丁必须当场核对**（`git show --stat` + `grep` 实际内容）—— 今晚已发生 **4 次**替换未命中（AH/AJ/AK/AM 的 AD5 部分）。
+- 构建产物必须**二进制复验**（`strings Image.optNN | grep` 新串存在、旧串消失）后再刷机。
+- 刷机前必须确认 bootloader 模式：`fastboot getvar partition-size:boot_a` 为 `0xC000000`（192MB）才是完整模式，`0` 是受限模式（会报 `Requested download size is more than max allowed`）。
