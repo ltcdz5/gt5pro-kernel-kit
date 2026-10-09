@@ -887,3 +887,12 @@ Unknown symbol hmbird_dir
 - 唯一核心文件改动：drivers/cpufreq/cpufreq.c 的 store_scaling_governor() 去 static（只改修饰符、函数体未动）+ 头文件原型；**无 EXPORT_SYMBOL** ⇒ 不影响 symvers/导出集
 - 仍缺：13 条非重叠 proc 条目、slim_walt_* 语义统一、**上机验证**（scx_enable=1 后看 dmesg 是否出现 hmbird_sched 标签）
 - 报告：档案/性能功耗/第8步-风驰调度核心StageABC-Lead复核-20261009.md
+## 十九、第9步 · 风驰「真正启用」实测：硬挂死（2026-10-09）
+
+- Stage D（714fadacba9f）把 /proc/hmbird_sched/scx_enable 接到真正的开关 hmbird_ctrl()
+- 真机实测（opt62，boot md5 cb09ff56cc9f5bee2e94b603b2b41eba）：**写 scx_enable=1 时整机硬挂死** ✗（adb 失联、USB 不枚举 ⇒ 强制重启后 bootreason=reboot）
+- 恢复：刷回 **opt60**（5fd7909866e0de04b8e46cd9b388cc2e）⇒ 8 秒进 adb、21 条节点、蓝牙正常 ✓
+- **结论**：挂死点在 hmbird_ctrl(true) → bpf_hmbird_reg() → hmbird_ops_enable() ✓ —— 启用后 fork 的**运行期语义不成立** ✗；「接口齐 + 家族被链接」**不等于能用** ✓
+- **修正**：opt60 时期"写 scx_enable=1 不挂死"是因为当时写处理是**空壳**（只写值，未真正启用）⇒ 不能解读为"启用安全" ✗
+- 安全边界：解决 slim_walt_* 语义统一等问题前，**对外镜像保持 CONFIG_HMBIRD_SCHED_CORE=n**（或回退 Stage D）✓
+- 报告：档案/性能功耗/第9步-风驰启用实测-硬挂死-20261009.md
