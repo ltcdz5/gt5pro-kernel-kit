@@ -1,6 +1,6 @@
 id=fengchi-boot
 name=fengchi-boot（风驰自启 + MGLRU）
-version=v1.3
-versionCode=4
-author=DeepSeek × 机主
-description=自编内核专用：开机加载厂商 scx/hmbird 栈；游戏运行时切 scx 调速器，无游戏回到 OPPO 官方默认 uag（注意：walt 是 Scene 的策略，非官方默认）；并恢复 MGLRU 运行时值
+version=v1.4
+versionCode=5
+author=ltcdz5
+description=配套 ltcdz5 自编内核使用的风驰自启模块：开机加载厂商 scx/hmbird 栈并在游戏运行时自动切到 scx，退出回到系统默认 uag；同时恢复 MGLRU 运行时值（并入原 lru_gen_on 与 horae_once 的作用）
