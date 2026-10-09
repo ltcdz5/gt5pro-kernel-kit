@@ -1,82 +1,57 @@
-<!-- badges -->
-[![License](https://img.shields.io/badge/License-GPL--2.0-blue.svg)](LICENSE)
-[![Device](https://img.shields.io/badge/Device-Realme%20GT5%20Pro%20(RMX3888)-orange.svg)]()
-[![SoC](https://img.shields.io/badge/SoC-Snapdragon%208%20Gen%203%20(SM8650)-0a7bbb.svg)]()
-[![Kernel](https://img.shields.io/badge/Kernel-6.1.141%20OKI-f6a500.svg)]()
-[![AK3](https://img.shields.io/badge/AnyKernel3-Ready-3ddc84.svg)]()
-[![Source](https://img.shields.io/badge/%E6%BA%90%E7%A0%81%E5%BF%AB%E7%85%A7-gt5pro--kernel--src-2ea44f.svg)](https://github.com/ltcdz5/gt5pro-kernel-src)
+# gt5pro-kernel-kit
 
-# GT5 Pro 自编内核 · 核件包（kernel-kit）
+真我 GT5 Pro（RMX3888 / SM8650 / ColorOS 16 / 6.1.141 OKI 基线）自编内核的**工具箱与档案**。
 
-> 真我 GT5 Pro（RMX3888 / SM8650 / 6.1.141 OKI）自编内核的**工具、台账与验证件**仓库。
-> 源码本体在 [gt5pro-kernel-src](https://github.com/ltcdz5/gt5pro-kernel-src)；本仓库负责“怎么编、怎么验、怎么发布、怎么回退”。
+> 作者：**github@ltcdz5** ／ **酷安@天玑1100逆天功耗** ｜ 内容由 **DeepSeek** 协助整理
 
-## 现役与回退
+## 这个仓库解决什么
 
-| 项 | 值 |
+改内核最怕两件事：**把厂商模块搞崩**、**出了问题回不去**。本仓库把这两件事变成可核对的数字：
+
+| 关卡 | 判据 | 现状 |
+|---|---|---|
+| 关卡 1 · 厂商模块全量审计 | 设备上每个厂商 .ko 的符号都能被满足 | **493 个 / missing=0 / crc=0** |
+| 关卡 2 · 导出遮蔽 | 新增导出不得遮蔽厂商同名符号 | **遮蔽=0** |
+| 关卡 3 · 拒载检查 | 没有模块因版本或 CRC 变化被拒 | **拒载=0** |
+| 基准 · 导出集 | 导出符号逐名不变 | **15489 逐名一致** |
+
+## 目录
+
+| 路径 | 内容 |
 |---|---|
-| 现役版本 | `6.1.141-android14-11-o-ltcdz5-v1.1-opt54`（banner `#75-ack304-v1.1-opt54`；sched_ext/hmbird 私有栈回移 —— `oplus_bsp_sched_ext.ko` 可装载、`/sys/kernel/sched_ext` 出现）|
-| 现役镜像 | `boot-v1.1-opt54-repacked.img`，md5 `cbd8a8297bc0eca55cc66baba571dba0`（201,326,592 B）|
-| **AK3** | `GT5Pro-RMX3888-v1.1-opt54-AK3.zip`，md5 `e942c4fa81c2f94d411162a51bb8debf`（内含附加模块自动安装）|
-| 回退首选 | `boot-v1.1-opt53-repacked.img`（md5 `f927d8a259f0fad033e6c9b283066ae7`）|
-| 更早回退 | `boot-v1.1-opt50-repacked.img`（md5 `4a2829cf415756107d3785157e7289cd`）|
-| 台账（权威） | [CHANGELOG.md](CHANGELOG.md) §一 发布记录 |
+| tools/ | 三道关卡脚本、核心校验脚本、重打包工具 |
+| 档案/ | 过程档案：性能功耗（风驰全过程）、当前状态与版本对齐 等 |
+| 模块/fengchi-boot/ | 配套自编内核的风驰附加模块源码（3 个文件）|
+| configs/ | 构建配置 |
+| refs/ | 基线参考数据（厂商导出表等）|
+| archive/ | **归档**：不再使用但保留可追溯（见 archive/README.md）|
+| CHANGELOG.md | 按时间顺序的全部变更：每一步的动机、做法、数字、结论 |
 
-> ⛔ **opt54 的 scx 只到「接口出现」**：`/sys/kernel/sched_ext` 的 `enabled` 实测 = 0，scx 调度类**未启用**。
-> **禁止在这台设备上 register 任何 scx 调度器** —— opt43 实测整机硬挂死 + PMIC 看门狗复位（见 CHANGELOG §三.3）。  ← 机主已授权，风险自担；opt43 先例（硬挂死 + PMIC 复位）仍成立，须备好 fastboot 回退
+## 怎么用
 
-## 快速开始
+~~~bash
+bash builder_6.1.141.sh            # 构建（工具链路径按本机调整）
 
-**刷机（推荐 AK3）**：把 `GT5Pro-RMX3888-v1.1-opt54-AK3.zip` 丢进 KernelSU/Magisk 管理器刷入 ——
-自动刷内核 + 自动安装附加模块（`horae_once`、`quiet_logs`）✓
+python3 tools/gate_all_modules.py  # 关卡1：厂商模块 missing=0 / crc=0
+python3 tools/gate_new_exports.py  # 关卡2：遮蔽=0
+python3 tools/gate_vko_crc.py      # 关卡3：拒载=0
 
-**刷机（fastboot，只刷 boot_a）**：
-```sh
-fastboot flash boot_a boot-v1.1-opt54-repacked.img
-fastboot set_active a        # 必须！fastboot flash 会切槽
-fastboot reboot
-```
+bash verify_image.sh               # 镜像校验
+python3 repack_any.py              # 生成 AnyKernel3 包
+~~~
 
-**构建**：见 [builder_6.1.141.sh](builder_6.1.141.sh) 与 [新会话开场提示词-交接用-20261004.md](新会话开场提示词-交接用-20261004.md)
-```sh
-make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabihf- \
-  CC="ccache clang" LD=ld.lld HOSTCC=clang HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error gki_defconfig all
-# 构建后必须执行（否则厂商蓝牙模块因 CRC 不符被拒载）：
-python tools/patch_crc_sk_filter_trim_cap.py <Image> <vmlinux.symvers>
-```
+## 风驰（scx）怎么跑起来的
 
-## 文档地图（顶层只留这些；历史记录全在 `档案/`）
+一句话：**内核提供风驰调速器所需的接口与 ABI 兼容；用户态由一个自编小模块负责开机准备好、游戏时切过去**。
 
-| 文档 | 用途 |
-|---|---|
-| [CHANGELOG.md](CHANGELOG.md) | **台账（权威）**：§一 发布记录（现役/回退）、§二 全量版本明细、§三 否证与更正 |
-| [README.md](README.md) | 本文件：**现役与回退（权威）**、刷写须知、来源标注 |
-| [NOTICE.md](NOTICE.md) | 上游归属（GPL 要求，**不得匿名化**）|
-| [发布规范-20261004.md](发布规范-20261004.md) | 工作规范：发布前自检、内容边界、评审固化条款 |
-| [版本号规范-20261003.md](版本号规范-20261003.md) | 版本串命名规则（`v<族>.<次>-opt<序>`）|
-| [路线与边界.md](路线与边界.md) | 可改动面与边界、各方向的取舍结论 |
-| [救砖与回退-标准流程-20261001.md](救砖与回退-标准流程-20261001.md) | **砖了怎么办**：退路核验 + 回退命令 |
-| [新会话开场提示词-交接用-20261004.md](新会话开场提示词-交接用-20261004.md) | **接手入口**：环境、路径、当前状态 |
-| [厂商模块导出依赖表-20261003.md](厂商模块导出依赖表-20261003.md) | 数据表：厂商模块导出的 4623 个符号（闸门1 基准）|
-| [README.开源说明-简版.md](README.开源说明-简版.md) | 开源说明（简版）|
+- 用户态方案：模块/fengchi-boot/（作者：github@ltcdz5 ／ 酷安@天玑1100逆天功耗）
+- 不要用内核里的手动开关去固定风驰调度 —— 那条路属于另一血统，实测会把机器挂死
+- 建议卸载官方调度屏蔽类模块（如 IMS_VAROS），否则官调属性被清空，风驰无法工作
 
-## 工具（`tools/`，节选）
+详见 CHANGELOG.md 与 档案/性能功耗/。
 
-| 工具 | 用途 |
-|---|---|
-| `gate_new_exports.py` | **闸门1**：内核导出对账（新增 / 消失 / 遮蔽三侧；需在 WSL 内跑，基准在 `/home/builder/abi/`）|
-| `gate_vko_crc.py` | **闸门2**：厂商 .ko 的 modversions CRC 对账（判“会拒绝装载的模块”）|
-| `gate_all_modules.py` | **全量模块审计**：逐厂商 .ko 同时报「符号缺失 + CRC 不符」（闸门2 对「符号缺失」是盲区）；`python3 tools/gate_all_modules.py <内核树> <厂商.ko目录...>` |
-| `gate0_type_diff.py` | **闸门0**：类型级 ABI 预检 |
-| `patch_crc_sk_filter_trim_cap.py` | **蓝牙修复**：把 `sk_filter_trim_cap` 的 CRC 定点对齐厂商期望值（0x43b2b8f0 → 0xf5845708）|
-| `preflight.ps1 -Ver v1.1-optNN` | 发布前一键自检（树状态 / 闸门 / 镜像 md5 / 文档一致性 …）|
-| `repack_any.py` | 把裸 `Image` 塞进原厂 `boot_a.img` 的 v4 布局 |
-| `btf_from_image3.sh` / `btf_full_diff.sh` | 从 Image 抠 BTF 并做类型级对比（排查 ABI 漂移）|
+## 许可与说明
 
-## 归属与免责
-
-- 许可 **GPL-2.0**；内核源码版权归 kernel.org / Qualcomm / OPPO-realme 开源所有
-- AnyKernel3 模板：**osm0sis** @ xda-developers；社区参考项目：**cctv18**/oppo_oplus_realme_sm8650、OnePlusOSS/android_kernel_oneplus_sm8650、LineageOS
-- 刷机有风险，**责任自负**；本仓库为个人自用与学习用途。
-
-*最近更新：2026-10-08*
+- 本仓库只包含自己的代码与文档；第三方来源一律只做引用与致谢，不含其代码（见 NOTICE.md）
+- 个人自编自用，仅供交流学习
+- GPL-2.0
