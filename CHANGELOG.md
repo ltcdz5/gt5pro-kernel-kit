@@ -896,3 +896,37 @@ Unknown symbol hmbird_dir
 - **修正**：opt60 时期"写 scx_enable=1 不挂死"是因为当时写处理是**空壳**（只写值，未真正启用）⇒ 不能解读为"启用安全" ✗
 - 安全边界：解决 slim_walt_* 语义统一等问题前，**对外镜像保持 CONFIG_HMBIRD_SCHED_CORE=n**（或回退 Stage D）✓
 - 报告：档案/性能功耗/第9步-风驰启用实测-硬挂死-20261009.md
+## 二十、第13步 · 风驰在自编内核上**实测成功**（2026-10-09 晚）
+
+### 突破
+**在我们自编的 opt60 内核上，风驰（scx/hmbird）调速器成功注册并启动** ✓✓：
+
+~~~
+装载 oplus_bsp_game_opt + oplus_bsp_sched_assist + oplus_bsp_sched_ext 后：
+  scaling_available_governors: ★scx★ walt uag conservative powersave performance schedutil
+  写入 scx → policy0 = scx ✓   （10 秒重负载稳定，Oops/BUG/panic = 0）
+  dmesg: [scx_gov][scx_gov_init] init cluster[0] done. ✓
+         [scx_gov][scx_gov_start] start cluster[0] cluster_id[0] gov ✓
+~~~
+
+- 系统在**无游戏**时会自行切回 walt/uag ✓ —— 这是**官方设计的正常行为**（只有受支持游戏启动时才切 scx）
+- ⇒ **"风驰是否生效"的判据**：启动受支持游戏后，/sys/devices/system/cpu/cpufreq/policy*/scaling_governor 是否变为 scx
+
+### 关键结论：内核侧的活儿够用了 ✓
+SCRC（云控注入模块）的安装前置检查是「scaling_available_governors 里含 scx|hmbird」✓，而**我们的内核满足** ✓✓
+
+⇒ 风驰 = **内核提供 scx 调速器**（我们 ✓）＋ **厂商栈**（模块 ✓）＋ **COSA 云控配置**（SCRC 注入 ✓）＋ **完整官调 + 游戏助手** ✓
+
+### 必须遵守（社区/作者一致）
+1. **关掉 Scene 的调度**（调度 / CPU 亲和 / 线程绑定）✗ —— Scene 会抢权；SCRC 的冲突检查里就有 SCENE
+2. **不要用任何第三方调度/游戏线程模块** ✗
+3. **不要用搞机工具去固定 scx 调度** ✗ —— 会死机（我们已实测复现过）
+4. 保持 IMS_VAROS（官方调度屏蔽模块）**禁用** ✗ —— 它与风驰直接冲突（已改名为 IMS_VAROS.disabled-by-test，可随时改回）
+
+### 支持的游戏（SM8650 档，SCRC v5.6 共 49 款）
+原神(官/B/国际) / 崩坏星穹铁道 / 绝区零 / 鸣潮(官/B/国际) / 战双帕弥什 / 王者荣耀(官/体验/国际) / 和平精英 / 英雄联盟手游 / PUBG Mobile(6 服) / 穿越火线 / 使命召唤手游 / 暗区突围 / 三角洲行动 / 永劫无间 / 无畏契约手游 / 逆战未来 / QQ飞车 / 火影忍者 / 金铲铲之战 / 第五人格(3 服) / 香肠派对 / 阴阳师 / 光遇 / 迷你世界 / 对峙2 / 高能英雄 / 失控进化 / 洛克王国 / 萤火突击 / 异环 …
+（游戏还需在**游戏助手**列表中）
+
+### 交付/环境
+- SCRC v5.6 已装并生效 ✓（/data/adb/modules/scrc）；IMS_VAROS 已禁用（可逆）
+- 内核 = **opt60**（5fd7909866e0de04b8e46cd9b388cc2e，稳定运行数小时）；回退件齐备
