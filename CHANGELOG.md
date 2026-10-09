@@ -1041,3 +1041,34 @@ fengchi-boot/
   （它们能锦上添花：按游戏细化云控、补 critical_task 节点；但**风驰的核心切换由本模块独立完成** ✓）
 - ⛔ 必须卸载 `IMS_VAROS`（官方调度屏蔽模块，与风驰直接冲突）
 - ⛔ 关掉 Scene 的调度；不要用第三方调度/线程模块
+### 第15步补充 · v1.1：合并 MGLRU，回答"还需要哪些模块"
+
+**v1.1（2,164 B / 3 文件）新增**：把原 `lru_gen_on` 的两行并入 `service.sh`
+~~~
+echo Y > /sys/kernel/mm/lru_gen/enabled
+echo 1000 > /sys/kernel/mm/lru_gen/min_ttl_ms
+~~~
+实测：`mglru: enabled=0x0003 min_ttl_ms=1000` ✓
+
+**其余模块的取舍（已核实各自作用）**
+| 模块 | 作用 | 结论 |
+|---|---|---|
+| `horae_once` | 开机 `persist.sys.horae.enable=1` + `start horae`（保相机对焦/录像帧率）| **已被 v1.1 覆盖 ⇒ 可删** |
+| `lru_gen_on` | 开机写 MGLRU 两个节点 | **已并入 v1.1 ⇒ 可删** |
+| `extreme_gt`（Scene 生成）| **去锁帧 + 部分温控限制**（不动调度/调频）| 与风驰**不冲突** ⇒ 可留（高温时会影响发挥，自选）|
+| `quiet_logs` | 压制 SDM / ANDR-PERF 日志刷屏 | 与风驰无关 ⇒ 按需保留 |
+| SCRC（云控注入/OPGS）| 往 COSA 库注入 49 款游戏配置 + 关键线程节点 | **非必需**（风驰核心切换由本模块独立完成）；留作"按游戏细化"的锦上添花 |
+
+**云控注入是否需要其他模块**：**不需要** —— 它就是"用 root 往 COSA 的 SQLite 写行"；且对本实现**非必需**。
+
+**自动风驰的实现（最终形态）**
+~~~
+开机  /data/adb/modules/fengchi-boot/service.sh
+      ├─ 官调总闸：gameswitch/oiface/horae 属性 + start oiface/horae/gameopt_hal/vendor.urcc
+      ├─ 按依赖序 insmod：oplus_bsp_game_opt -> oplus_bsp_sched_assist -> oplus_bsp_sched_ext
+      │                （最后者注册 ★scx★ 调速器）
+      ├─ MGLRU：lru_gen/enabled=Y, min_ttl_ms=1000
+      └─ 起守护 fengchi-gov.sh
+运行期 fengchi-gov.sh（每 4s）
+      └─ /proc/game_opt/game_pid 有游戏 ⇒ 写 scx；无游戏 ⇒ 写回 uag
+~~~
