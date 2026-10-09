@@ -874,3 +874,16 @@ Unknown symbol hmbird_dir
   - 但 `scx_enable` 回读 0、`<hmbird_sched>` 计数 0 ⇒ **调度未真正生效**，指向 fork 核心（`gdsqs`/`pcp`/`partial`）未搬入
 - 两条 WARNING（2.0 s `proc_register` 重复、86.7 s `tracepoint_add_func`，`Comm: autochmod.sh`）归因为**厂商模块重复注册** ✅ 与本轮改动无关
 - 报告：`档案/性能功耗/第7步-真机验证-opt60-20261009.md`
+## 十八、第8步 · 风驰调度核心 Stage A/B/C（2026-10-09）
+
+**结论：完整链路就位 —— 家族 19 文件能编进内核（CONFIG_HMBIRD_SCHED_CORE=y），且已接进 core.c 调度路径；ABI 一点没动（导出集 15,489 逐名一致）。**
+
+| 阶段 | 提交 | 关键判据 |
+|---|---|---|
+| A 搬入家族（19 文件 / 7,990 行）| 2a08b68fc280 | 构建 rc=0；四关全绿；导出集 15,489 |
+| B 补 26 标识符 + API 适配 | a8c954cdd0a8 | **121 errors → 0**；CORE=y **rc=0**；四关全绿；导出集 15,489 |
+| C core.c 接线（唯一改动源文件）| 03e40923075a | Lead 亲跑 harness：493 模块 missing=0/crc=0、拒载=0、遮蔽=0、**导出集逐名一致**、proc 21/21 |
+
+- 唯一核心文件改动：drivers/cpufreq/cpufreq.c 的 store_scaling_governor() 去 static（只改修饰符、函数体未动）+ 头文件原型；**无 EXPORT_SYMBOL** ⇒ 不影响 symvers/导出集
+- 仍缺：13 条非重叠 proc 条目、slim_walt_* 语义统一、**上机验证**（scx_enable=1 后看 dmesg 是否出现 hmbird_sched 标签）
+- 报告：档案/性能功耗/第8步-风驰调度核心StageABC-Lead复核-20261009.md
