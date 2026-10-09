@@ -1,6 +1,6 @@
 id=fengchi-boot
 name=fengchi-boot（风驰自启 + MGLRU）
-version=v1.8
-versionCode=9
+version=v1.9
+versionCode=10
 author=github$ltcdz5 / 酷安$天玑1100逆天功耗
-description=配套自编内核使用：开机准备官方调度环境、按依赖序加载厂商 scx/hmbird 模块栈、恢复 MGLRU、自动拉起第三方关键线程组件(可选)，并在游戏运行时自动切到 scx、退出后切回官方默认。日志写在 Download 目录，配置见 fengchi.conf 与模块内 README.md。
+description=配套自编内核使用：开机准备官方调度环境、按依赖序加载厂商 scx/hmbird 模块栈、恢复 MGLRU、自动拉起第三方关键线程组件(可选)；游戏运行时自动切到 scx 并打开关键线程总开关 ct_enable，退出后切回官方默认并还原。日志在 Download 目录，配置见 fengchi.conf 与模块内 README.md。
