@@ -1,7 +1,7 @@
 id=fengchi-boot
 name=fengchi-boot（风驰自启 + MGLRU）
-version=v1.5
-versionCode=6
-author=github@ltcdz5
-description=配套 github@ltcdz5 自编内核使用的风驰自启模块。开机加载厂商 scx/hmbird 栈并在游戏运行时自动切到 scx，退出回到系统默认 uag；同时恢复 MGLRU 运行时值（并入原 lru_gen_on 与 horae_once 的作用）。
-# 作者：github@ltcdz5（酷安同名）—— 个人自编自用，仅供交流学习
+version=v1.6
+versionCode=7
+author=github@ltcdz5 / 酷安@天玑1100逆天功耗
+description=配套 github@ltcdz5（酷安@天玑1100逆天功耗）自编内核使用的风驰自启模块。开机加载厂商 scx/hmbird 栈并在游戏运行时自动切到 scx，退出回到系统默认 uag；同时恢复 MGLRU 运行时值（并入原 lru_gen_on 与 horae_once 的作用）。
+# 作者：github@ltcdz5 ／ 酷安@天玑1100逆天功耗 —— 个人自编自用，仅供交流学习
