@@ -1282,3 +1282,34 @@ opt78 实测（内核日志）：
 - 今晚累计修复 **24 个阶段**（G→AG），每个都由落盘现场驱动。
 - 剩余：**1~3 轮**（当前卡点已精确到"实体释放路径未覆盖全部来源"）。
 - 之后：关闭路径验证 1 轮、游戏实测 1 轮。
+## 二十八、第17步续 · 子代理审核 + Stage AI：终于走进切换循环（2026-10-10 凌晨）
+
+### 一、子代理审核（只读）抓到三个真问题（两个是我自己造的）
+| 项 | 审核结论 | 我的处理（Stage AI）|
+|---|---|---|
+| **A** | **Stage AH 根本没修好 AD3** —— 字符串替换未命中，实际只改了 AD6 缩进；`hmbird.c:4068-4070` 仍是"打点当循环体 + `prepare_task(p=NULL)` 在循环外" | **改为按行号重建循环**（带花括号）⇒ 编译日志已核对通过 |
+| **A 佐证** | `pahole`: `android_oem_data1[6] @3544(0xDD8)` + `HMBIRD_TS_IDX=1` ⇒ **0xDE0 = NULL->android_oem_data1[1]** ⇒ 是**空指针**，不是"用户态指针" | 已改正结论（原 AF 注释是错的）|
+| **B** | **Stage AG 挂错位置** —— `free_task()` 也被 fork 失败路径（`delayed_free_task`）调用，而子任务的 `android_oem_data1[1]` 是**父任务实体的逐字节拷贝**（`arch_dup_task_struct`）⇒ `hmbird_free(子)` 会把**父任务**实体摘链并 kfree ⇒ 父任务 UAF | 调用点移到 `__put_task_struct()`（紧邻 `sched_ext_free`，fork.c:972）+ 兜底 `see->task != p` 校验 |
+| **C** | `virt_addr_valid()` 判据**无效**（cursor 已被 CURSOR 标志挡住；已 kfree 的 slab 仍在线性映射 ⇒ 返回 true）| 删掉该判据与误导注释 |
+| **D** | 15 个 `.bak` 被误提交进 git | `git rm --cached` + `.gitignore` |
+
+**审核方法论沉淀**：① 机械扫描"控制语句行尾无花括号、下一行缩进更浅"的异常（本次全文件仅 1 处）；② 用 `pahole` 反查故障地址是否等于结构体字段偏移；③ 与同树 `ext.c` 的同类实现逐点对比（`sched_ext_free` 挂 `__put_task_struct` 而非 `free_task`）。
+
+### 二、里程碑：启用流程第一次走进"切换任务"阶段
+opt89（Stage AI 全量修复）实测内核日志：
+~~~
+[49.943947] hmbird-dbg: enable AD5 in switch loop     ← 切换循环开始遍历任务（连续多条）
+~~~
+- **AD3 准备循环通过** ⇒ 启用流程第一次抵达"切换任务"阶段（此前所有版本都死在准备阶段）。
+- 新现场（换了地方）：
+~~~
+[49.933198] pc : task_rq_lock+0x140/0x168
+[49.933873] pc : oplus_tickpull_runnable_rt+0x330/0x448 [oplus_bsp_sched_assist]
+[49.934997] pc : android_rvh_try_to_wake_up+0x24c/0x2b0 [sched_walt]
+~~~
+⇒ 前沿转移到**与厂商调度模块（sched_assist / sched_walt）在 rq 锁上的交互**。
+
+### 三、下一步方向
+1. 核对 `hmbird_ops_enable()` 切换循环里对 rq 锁的使用与厂商 `oplus_bsp_sched_assist`（`oplus_tickpull_runnable_rt`）的钩子是否冲突（例如在持 rq 锁时触发唤醒路径）。
+2. 检查 `hmbird_setscheduler_prio()` 在 `SCHED_CHANGE_BLOCK` 内被调用时，是否会与厂商的 `android_rvh_try_to_wake_up` 钩子互相递归/重入。
+3. 可选：先把厂商 sched_assist 的 `tickpull` 特性临时关闭做对照实验，确认是否为其交互所致。
