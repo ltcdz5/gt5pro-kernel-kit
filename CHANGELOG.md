@@ -1169,3 +1169,41 @@ pc : balance_hmbird+0x58c
 
 **九个阶段汇总**：G 闸门 → H 补实体 → I 链表校验 → J per-rq 初始化 → K version_type→OGKI → L 实体入链 → M 实体生命周期 → N/O iso_masks 分配
 ⇒ **每一次都由 `/data/persist_log/backup/SYSTEM_LAST_KMSG.txt` 的精确现场驱动** ✓
+## 二十五、第17步续 · Stage T/U/V 与两次"启动循环"事故（2026-10-09 夜）
+
+### 一、今晚新增的阶段
+| 阶段 | 内容 | 状态 |
+|---|---|---|
+| **T** | `kernel/sched/core.c` 的 `sched_cancel_fork()` 补 `hmbird_cancel_fork(p)`（与 `sched_post_fork` 对称；`kernel/sched/ext.c:2453 scx_cancel_fork` 同样 `percpu_up_read`）。修 fork 失败时**实体 + hmbird_fork_rwsem 读锁双重泄漏** ⇒ 之后 enable/disable 的 `percpu_down_write` 永久阻塞 | 已提交 |
+| **U** | `hmbird_watchdog_workfn()` 改为**无条件重新排队**（原来 `if (!timeout)` ⇒ 一次超时就永久停摆，30s 后 tick 报 stall 并触发复位）| 已提交 |
+| **V** | 暂缓（Stage S 已在 `task_on_hmbird()` 要求实体存在 + `hmbird_select_cpu_dfl` 判空兜底）| 待定 |
+
+### 二、两次"启动循环"事故（重要教训）
+1. **opt74**：为提速关闭 `DEBUG_INFO`/`DEBUG_INFO_DWARF4`/`DEBUG_INFO_BTF` ⇒ **Image 内 CRC 变化** ⇒ 4 项定点覆写**只有 1 项命中（3 项 SKIP）** ⇒ 厂商模块 CRC 校验失败 ⇒ 模块拒载 ⇒ **启动循环**。
+   ⇒ **规则**：绝不为了提速改这些配置项；**CRC 必须 4/4**，否则构建判失败。
+2. **opt76**：配置被我改过又"恢复"⇒ 存在**配置漂移** ⇒ 同样启动循环（CRC 是 4/4，说明问题不在 CRC）。
+   ⇒ **修法**：`rm -f out-core/.config` ⇒ `make gki_defconfig` ⇒ 只 `--enable HMBIRD_SCHED_CORE` ⇒ 重编。**opt77 一次启动成功**。
+   ⇒ **规则**：测试内核的配置一律**从零生成**，不手工增删。
+
+### 三、取证能力升级（关键）
+- 测试脚本把面包屑写进 **`/dev/kmsg`**（`hmbird-test: ...`）⇒ 即使整机硬挂/panic，**重启后落盘日志里仍能看到测试进度**。
+- 实测（opt77 + Stage T/U）：
+~~~
+[193.509] hmbird-test: pre uptime=193
+[193.513] hmbird-test: wrote scx_enable=1 rc=0        ← 启用写入成功
+[193.514] <hmbird_sched>(dsq_flags & DSQ_ON_PRIQ) || !RB_EMPTY_NODE(&dsq_node.priq), task = sh
+[193.755] 同上, task = UrccWork
+[193.760] pc : rb_erase+0xc   balance_hmbird+0x4f4
+[193.760] Kernel panic - not syncing: Oops: Fatal exception
+~~~
+
+### 四、当前最前沿的问题：DSQ 记账不一致
+- 守卫含义：`dsq_flags` 说"不在 priq 树上"，但 `dsq_node.priq` **仍挂在树上**。
+- `task_unlink_from_dsq()` **按标志位选分支**（priq ⇒ `rb_erase_cached`；否则 ⇒ `list_del_init`）⇒ 标志位一旦与实际挂载不符，就会**走错分支**、把节点留在树里 ⇒ 之后 `balance_hmbird()` 的 `rb_erase` 踩到野节点 ⇒ panic。
+- 下一步方向：核对 `task_unlink_from_dsq(p, dsq)` 的 **dsq 参数是否与任务实际所在的 DSQ 一致**；以及 `holding_cpu`/`dsq` 字段在 `dispatch_enqueue`/`dispatch_dequeue` 之间的成对性。
+
+### 五、设备与产物状态（截至 2026-10-09 22:00）
+- 设备当前：**opt77**（`CONFIG_HMBIRD_SCHED_CORE=y`、配置从零生成、可正常启动、稳定；仅 `scx_enable=1` 时崩）。
+- 稳定回退件：`boot-v1.1-opt60-repacked.img` md5 `5fd7909866e0de04b8e46cd9b388cc2e`。
+- 自动化：`_audit/iter2.ps1`（闸门 → 重打包 → 刷机 → 等启动 150s → **失败自动回退 opt60** → 设备端核对 → 启用测试 → 采集），状态写 `_audit/iter_status.txt`。
+- 本次自动化实测：opt76 起不来时**自动回退成功**，手机无需人工干预即恢复可用。
