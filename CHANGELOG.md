@@ -1110,3 +1110,43 @@ echo 1000 > /sys/kernel/mm/lru_gen/min_ttl_ms
 1. 这份内核树是 **partial + shallow** ⇒ **永远不要试图从它推送** ✗，要用 API 或完整克隆 ✓
 2. WSL 的全局 `insteadOf` 会把 github.com 改写成 gh-proxy ⇒ 直连前须临时摘掉（用完记得恢复）✓
 3. 推送前先量 `git diff --name-status <remote-branch> HEAD`：**差异小就用 API** ✓（本例 36 个文件，秒级完成）
+## 二十四、第17步 · 向 sched_ext（调度器那一半）进攻（2026-10-09 晚）
+
+### 一、方法论突破：拿到"事后现场"能力 ✓
+设备上厂商的 `dmesg_dumper` 会把内核日志落盘到
+`/data/persist_log/backup/SYSTEM_LAST_KMSG.txt` ✓ —— **挂死/panic 后重启即可读到精确现场**（含 `pc :` / `lr :` / `Call trace` / 故障地址 ✓）。
+⇒ 从此**不再是黑盒调试** ✓：每次崩溃都能定位到函数+偏移 ✓。
+
+### 二、五个阶段（每一步都修掉一个"前置缺失"，崩溃点逐步后移 ✓）
+| 阶段 | 补的缺口 | 依据 |
+|---|---|---|
+| **G** | 闸门从 `hmbird_module_loaded` 换回出厂语义 `ext_module_loaded` ✓ | Stage E 反汇编证据 |
+| **H** | 给"fork 钩子之前就存在的任务"补实体（`kzalloc(GFP_ATOMIC)`，不碰 `hmbird_fork_rwsem` ✓）| 现场：`prepare_task+0x1c` 读 `->flags` 踩野指针 |
+| **I** | 实体 `tasks_node` 初始化 + 迭代器**校验条目有效性** + 迭代上限 ✓ | 现场：迭代器返回野指针 |
+| **J** | enable 路径补 `slim_walt_enable(1)`（= `hmbird_sched_stats_init()` ✓）| Stage E 候选 ③ |
+| **K** | **`version_type` UNKNOWN → OGKI** ✓ | 现场：`hrtimer_active(shadow_tick_timer(cpu))` 读到 NULL ✓；根因=本机 DT 无 hmbird 节点 ⇒ `hmbird_shadow_tick_init()` 整段 return ✗ |
+| **L** | Stage H 补出的实体**必须入链** ✓ | 现场：`rb_erase` 踩到已回收、内容是字符串的内存（故障地址 `006c6174726f6d7d` = "latrom}" ✓）|
+
+### 三、里程碑：调度器**真的开始跑**了 ✓
+Stage K 之后，崩溃点从"根本没进调度"变成"**调度器正在派发任务时崩**" ✓：
+~~~
+pc : rb_erase+0xc   lr : consume_dispatch_q+0x388   ← 从 DSQ 取任务
+     balance_hmbird+0x58c                            ← hmbird 负载均衡在跑
+~~~
+⇒ `hmbird_sched_class` **已经接管任务** ✓✓（此前从未走到这一步 ✓）
+
+### 四、当前剩余问题（如实）
+最新现场（opt68）：
+~~~
+<hmbird_sched>(get_hmbird_ts(p)->dsq_flags & HMBIRD_TASK_DSQ_ON_PRIQ)
+  || !RB_EMPTY_NODE(&get_hmbird_ts(p)->dsq_node.priq), task = PERFD-SERVER
+Unable to handle kernel paging request at 0004104100008b77
+pc : balance_hmbird+0x58c
+~~~
+⇒ **实体的 DSQ 记账状态自相矛盾 + 疑似 use-after-free** ✗
+⇒ 方向：实体生命周期（`hmbird_free`/`hmbird_cancel_fork` 与 DSQ 出队顺序 ✓）、DSQ 记账一致性 ✓
+
+### 五、安全边界（未变 ✓）
+- 每一步都过 CRC 定点覆写 + 导出集 **15489 逐名一致** ✓
+- **对外发布镜像仍保持 `CONFIG_HMBIRD_SCHED_CORE=n`** ✓（家族不编入 ✓），或刷回 opt60 ✓
+- 现役稳定内核：**opt60**（`5fd7909866e0de04b8e46cd9b388cc2e`）✓；实验内核 opt64~opt68 仅用于本次调试 ✓
