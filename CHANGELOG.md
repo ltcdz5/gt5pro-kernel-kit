@@ -1087,3 +1087,26 @@ echo 1000 > /sys/kernel/mm/lru_gen/min_ttl_ms
 - 因此守护脚本 `IDLE_GOV` 由 walt 改回 **uag** ✓，实测四集群全部 = uag ✓
 - ⚠️ 推论：**Scene 里若设置了 CPU 调速器（walt 等），会盖掉官方的 uag** ⇒ 使用风驰时应**关掉 Scene 的调速器/调度设置** ✗
 - 同时解释了一个现象：今晚最初观察到 `walt`（那时 Scene 已设过），重启后变回 `uag`（ROM 自己的默认）
+## 二十三、第16步 · 仓库整理与发布（2026-10-09 深夜）
+
+### 一、发现的真问题（先搞清楚再动手）
+`gt5pro-kernel-src` 的本地工作树是 **partial clone（blob:none）+ shallow** ✗：
+- 缺 delta 基准对象 ⇒ 推送时报 `remote: fatal: did not receive expected object a224a9d8...` / `index-pack failed`
+- 且 `origin`（上游 cctv18 仓库）原走 `gh-proxy`，懒加载会卡死 ⇒ 换直连后才拿到该对象
+- **试过且失败的路径**：`push --force`、`push --no-thin`、改 pushurl、`-c insteadOf=` 覆盖、尾点主机名、临时摘掉 insteadOf 直连
+- **结论**：从 partial+shallow 仓库推送大历史**不可行** ✗ ⇒ 改用 **GitHub Git Data API**（blobs → tree → commit → 更新 ref）✓
+
+### 二、完成的事
+| 项 | 结果 |
+|---|---|
+| src 主分支同步 | 远端真实差异仅 **36 个文件**（5 增 / 3 删 / 28 改，1.1 MB）⇒ API 一次提交 ✓ main = `808db06f` |
+| 保留许可证 | diff 里 3 个删除项（LICENSE / NOTICE.md / README.android-common-kernel.md）**一律保留** ✓（GPL 仓库不能删许可证）|
+| 来源与致谢 | `NOTICE.md` 重写：逐条列出 hmbird/slim/sched_ext 相关文件的社区来源，并声明"许可不完全明确、仅说明引用与致谢" ✓ |
+| 分支清理 | src：9 个分支 → **`main` + `history`** ✓（`history` 保留，内含 opt45/opt47 的原始 SHA ✓）；默认分支 = `main` ✓ |
+| Release | hmbird 仓库发布 **v1.6-module**（附件 `fengchi-boot-v1.6.zip`）✓ |
+| 本地磁盘 | 释放约 **4.4 GB**（WSL `out-core` 4.0 GB；Windows 旧镜像/scratch/logs/analysis 0.37 GB）✓ |
+
+### 三、经验（写下来免得再踩）
+1. 这份内核树是 **partial + shallow** ⇒ **永远不要试图从它推送** ✗，要用 API 或完整克隆 ✓
+2. WSL 的全局 `insteadOf` 会把 github.com 改写成 gh-proxy ⇒ 直连前须临时摘掉（用完记得恢复）✓
+3. 推送前先量 `git diff --name-status <remote-branch> HEAD`：**差异小就用 API** ✓（本例 36 个文件，秒级完成）
