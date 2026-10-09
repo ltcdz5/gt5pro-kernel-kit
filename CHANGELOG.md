@@ -978,3 +978,26 @@ opgs : ctn_patch=1 opgs_daemon=1 ✓
 
 ### 五、当前结论
 **内核侧与厂商栈链路已全自动打通** ✓；"游戏启动 ⇒ 自动切 `scx`"这一步**待最终观察**（判据：游戏启动后 `/sys/devices/system/cpu/cpufreq/policy*/scaling_governor` 应变为 `scx`）
+### 十四步补充 · **实测生效（2026-10-09 14:56）** ✓✓
+
+守护脚本 `/data/adb/fengchi-gov.sh`（已挂进 `/data/adb/service.d/99-fengchi.sh` 开机自愈脚本）：
+~~~
+检测 /proc/game_opt/game_pid：有游戏 ⇒ 把 policy*/scaling_governor 写 scx；无游戏 ⇒ 写回 uag
+（每 4 秒轮询；仅在 scx 已注册时动作）
+~~~
+**实测结果**（第五人格在前台）：
+~~~
+[14:56:06] game detected -> gov=scx
+policy0 = scx ✓   policy7 = scx ✓
+game_pid=16144 child_num=53 ✓
+稳定性: Oops=0 BUG=0 ✓
+~~~
+
+**⇒ 风驰完整链路全线打通：**
+| 环节 | 实现 |
+|---|---|
+| 内核提供 `scx` 调速器 | 自编 opt60（本项目工作）+ 厂商 `oplus_bsp_sched_ext.ko` |
+| 厂商栈自动加载 | `/data/adb/service.d/99-fengchi.sh`（依赖序 insmod + 起 HAL）|
+| OPGS 关键线程通路 | SCRC `kmodule`（`ctn_patch.ko` + `opgs_daemon` ⇒ `critical_task=UnityMain UnityGfxDevice`）|
+| 云控配置 | SCRC v5.6 `bin/inject`（SM8650 共 49 款游戏）|
+| **游戏触发切换** | `fengchi-gov.sh` 守护（有游戏 ⇒ `scx`，无游戏 ⇒ `uag`）|
