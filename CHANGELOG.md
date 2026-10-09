@@ -1207,3 +1207,45 @@ pc : balance_hmbird+0x58c
 - 稳定回退件：`boot-v1.1-opt60-repacked.img` md5 `5fd7909866e0de04b8e46cd9b388cc2e`。
 - 自动化：`_audit/iter2.ps1`（闸门 → 重打包 → 刷机 → 等启动 150s → **失败自动回退 opt60** → 设备端核对 → 启用测试 → 采集），状态写 `_audit/iter_status.txt`。
 - 本次自动化实测：opt76 起不来时**自动回退成功**，手机无需人工干预即恢复可用。
+## 二十六、第17步续 · Stage W/X/Y/Z：从"一启用就崩"到"能启用、能自保"（2026-10-09 深夜）
+
+### 一、今晚新增阶段
+| 阶段 | 内容 |
+|---|---|
+| **W** | `dispatch_enqueue()` 的 FIFO 分支补 `dsq_flags &= ~HMBIRD_TASK_DSQ_ON_PRIQ`（原来只在 priq 分支置位、FIFO 分支不清 ⇒ 标志残留 ⇒ 出队走错分支 ⇒ union(fifo/priq) 互相写坏 ⇒ `balance_hmbird` 的 `rb_erase` 踩野节点 panic）；同时 `task_unlink_from_dsq()` 改为按 `RB_EMPTY_NODE` **实际状态**选分支 |
+| **X** | `dispatch_enqueue()` 入队前**自愈**：若仍有残留（`dsq` 指针 / fifo 非空 / priq 非空），先按任务记录的 `dsq` 摘一次再入队；无归属记录则直接复位节点 |
+| **Y** | `get_cpus_max_util()` 判空兜底（返回 0） |
+| **Z** | 定位仪表：① 空掩码时打印**调用者符号**（`%pS`）② DSQ 残留时打印 任务名/新旧 dsq/flags/节点父指针/fifo 是否空 ③ 启用成功后打印四个掩码内容 |
+
+### 二、里程碑：调度器第一次真正启用成功
+opt78 实测（内核日志）：
+~~~
+[187.297580] <hmbird_sched>:hmbird enabled finished at jiffies = 4294939114
+[310.280900] <hmbird_sched>:hmbird disabled finished at jiffies = 4294969860
+~~~
+- **启用完整成功**，稳定运行 **123 秒**，随后家族因内部错误计数触发**自我保护**（`hmbird_err_exit_workfn`）自动关闭；**整机全程未崩**。
+- 关闭路径的 `WARNING ... hmbird.c:3840` 是善后动作的次要问题：`store_scaling_governor(policy, saved_gov[cpu], strlen(saved_gov[cpu]))` 因 `saved_gov[]` 为空而失败（我们的启用路径没走"保存原调速器"那一步）。
+
+### 三、当前精确卡点（opt81 实测，含 Stage Z 仪表）
+~~~
+[31.957599] hmbird-rich: pre
+[31.961073] hmbird-rich: wrote rc=0
+[31.961417] Internal error: Oops: 96000005
+[31.962020] pc : get_cpus_max_util+0xcc/0x2a4
+[31.962115] Kernel panic - not syncing: Oops: Fatal exception
+~~~
+- 崩溃发生在 `get_cpus_max_util+0xcc`，而 Stage Y 的判空守卫在函数更前面 ⇒ **不是空掩码**（`hmbird-dbg: ... NULL mask` 未打印，印证）。
+- ⇒ 问题在函数内部：`slim_get_cpu_util()` 的 per-CPU 数据，或掩码内容本身异常。
+- 下一步：在 `get_cpus_max_util()` 内部与 `slim_get_cpu_util()` 加入逐 CPU 打印（掩码内容 + per-CPU 指针 + util），一轮即可定位。
+
+### 四、工程化成果（都已可用）
+1. **自动化迭代** `_audit/iter3.ps1`：闸门（System.map 含 `hmbird_sched_class`）→ 重打包 → 刷机 → 等启动 150s → **失败自动回退 opt60** → 设备端核对 → 启用测试 → 采集；状态写 `_audit/iter_status.txt`。**已两次实测自动救回手机**。
+2. **面包屑取证**：测试脚本把 `hmbird-test: ...` / `hmbird-rich: ...` 写进 `/dev/kmsg`，硬挂后仍可在落盘日志 `/data/persist_log/backup/SYSTEM_LAST_KMSG.txt` 读到。
+3. **构建硬闸门**：`CRC_OK_COUNT` 必须 = 4，否则构建失败、绝不产出可刷镜像。
+4. **配置纪律**：测试内核的 `.config` 一律 `make gki_defconfig` 从零生成 + 只 `--enable HMBIRD_SCHED_CORE`；**禁止**手改 `DEBUG_INFO`/`BTF`（会导致 CRC 漂移 ⇒ 模块拒载 ⇒ 启动循环）。
+5. **快编译**：`make ... Image`（不编模块）+ 完整配置 ⇒ 增量 **80~90 秒**。
+
+### 五、剩余工作量判断
+- 核心功能：**约 1~3 轮**（当前卡点已精确到函数内偏移）。
+- 之后：关闭路径（`scx_enable=0`）验证 1 轮；游戏/功耗实测 1 轮。
+- 发布纪律不变：对外镜像保持 `CONFIG_HMBIRD_SCHED_CORE=n`，实验内核仅验证期使用；回退件 opt60（`5fd7909866e0de04b8e46cd9b388cc2e`）。
