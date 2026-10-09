@@ -1150,3 +1150,22 @@ pc : balance_hmbird+0x58c
 - 每一步都过 CRC 定点覆写 + 导出集 **15489 逐名一致** ✓
 - **对外发布镜像仍保持 `CONFIG_HMBIRD_SCHED_CORE=n`** ✓（家族不编入 ✓），或刷回 opt60 ✓
 - 现役稳定内核：**opt60**（`5fd7909866e0de04b8e46cd9b388cc2e`）✓；实验内核 opt64~opt68 仅用于本次调试 ✓
+### 第17步补充 · Stage N/O 与"崩溃全清"（2026-10-09 深夜）
+
+**Stage N/O：`iso_masks` 的隔离掩码没人分配** ✓
+- 现象：启用后 `pc : get_cpus_max_util+0xc8`、`NULL deref @0x100` ✓
+- 根因：`struct scx_iso_masks iso_masks;`（hmbird_export.c）是**零初始化的全局** ⇒ 里面 5 个 `cpumask_var_t` 全是 NULL；全树**无人调用 `alloc_cpumask_var()`** ✗（出厂由厂商侧分配 ✓）
+- 修法：做成**幂等 `hmbird_iso_masks_ensure()`** ✓，**在 `ext_ctrl()` 开头调用**（保证在调度器跑起来前执行 ✓）+ 保留 early_initcall 作为首次尝试 ✓；**不新增 EXPORT_SYMBOL**（导出集仍 **15489** ✓）
+- 实测：`[0.005582] hmbird: iso_masks allocated (Stage O)` ✓，**该 NULL 崩溃彻底消失** ✓
+
+**结果：从"一启用就 panic" → "启用成功、不再崩"** ✓✓
+最新现场只剩家族自己的 watchdog：
+~~~
+<hmbird_sched>type(4) watchdog failed to check in for 30.928s
+~~~
+**性质已变** ✓（不再是缺初始化 ✗）：看代码可知
+`hmbird_watchdog_workfn()` 只要发现**有任务在 DSQ 里超时**就 `break` 且**不再重新排队** ✗ ⇒ 时间戳冻结 ⇒ 调度 tick 报 stall ⇒ 致命信息 ⇒ 重启 ✓
+⇒ 剩下的是**调度器派发/超时逻辑本身**（任务入队却没被及时取走 ✓），属于算法层面 ✓，不是初始化缺失 ✓
+
+**九个阶段汇总**：G 闸门 → H 补实体 → I 链表校验 → J per-rq 初始化 → K version_type→OGKI → L 实体入链 → M 实体生命周期 → N/O iso_masks 分配
+⇒ **每一次都由 `/data/persist_log/backup/SYSTEM_LAST_KMSG.txt` 的精确现场驱动** ✓
