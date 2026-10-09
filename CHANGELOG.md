@@ -1072,3 +1072,11 @@ echo 1000 > /sys/kernel/mm/lru_gen/min_ttl_ms
 运行期 fengchi-gov.sh（每 4s）
       └─ /proc/game_opt/game_pid 有游戏 ⇒ 写 scx；无游戏 ⇒ 写回 uag
 ~~~
+
+### 第15步补充 · v1.2：无游戏时回到**官方默认 walt**
+守护脚本增设 `IDLE_GOV=walt`（原为 uag）：
+~~~
+有游戏 ⇒ scx（风驰）
+无游戏 ⇒ walt（官方默认，实测本机未干预时即为 walt）
+~~~
+实测：四集群全部回到 `walt` ✓；日志 `daemon start (idle_gov=walt)` ✓

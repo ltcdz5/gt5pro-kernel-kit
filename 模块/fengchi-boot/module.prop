@@ -1,6 +1,6 @@
 id=fengchi-boot
 name=fengchi-boot（风驰自启 + MGLRU）
-version=v1.1
-versionCode=2
+version=v1.2
+versionCode=3
 author=DeepSeek × 机主
-description=自编内核专用：开机加载厂商 scx/hmbird 栈并在游戏时自动切 scx 调速器；同时恢复 MGLRU 运行时值（并入原 lru_gen_on 与 horae_once 的作用，可删除这两个模块）
+description=自编内核专用：开机加载厂商 scx/hmbird 栈并在游戏运行时自动切 scx 调速器，无游戏时回到官方默认 walt；同时恢复 MGLRU 运行时值（并入原 lru_gen_on 与 horae_once 的作用）
