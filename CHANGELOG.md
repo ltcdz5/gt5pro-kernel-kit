@@ -1001,3 +1001,43 @@ game_pid=16144 child_num=53 ✓
 | OPGS 关键线程通路 | SCRC `kmodule`（`ctn_patch.ko` + `opgs_daemon` ⇒ `critical_task=UnityMain UnityGfxDevice`）|
 | 云控配置 | SCRC v5.6 `bin/inject`（SM8650 共 49 款游戏）|
 | **游戏触发切换** | `fengchi-gov.sh` 守护（有游戏 ⇒ `scx`，无游戏 ⇒ `uag`）|
+## 二十二、第15步 · 统一附加模块 **fengchi-boot**（2026-10-09，最终形态）
+
+### 一、设计目标（机主要求）
+> 尽量减少对别人代码的依赖；内核需要的用户态加载统一收进**一个附加模块**；实现简洁优雅。
+
+### 二、成品（**3 文件 / 1.8 KB**）
+~~~
+fengchi-boot/
+├── module.prop        (225 B)  模块描述
+├── service.sh         (1344 B) 开机：官方环境 + 按依赖序加载厂商栈 + 起守护
+└── fengchi-gov.sh     (883 B)  守护：有游戏 ⇒ scx；无游戏 ⇒ uag
+~~~
+安装：`ksud module install fengchi-boot-v1.0.zip`（KSU 会先落到 `modules_update/`，**重启后生效**）
+
+### 三、它做的三件事（幂等）
+1. **官调总闸**：`persist.sys.oplus.gameswitch.enable=1` / `oiface.enable=1` / `horae.enable=1` / `sys.oplus.hmbird.manager.enable=1`；`start oiface/horae/gameopt_hal_service-1-0/vendor.urcc-hal-aidl`
+2. **按依赖序加载厂商栈**：`oplus_bsp_game_opt` → `oplus_bsp_sched_assist` → `oplus_bsp_sched_ext`（`scx` 调速器由最后者注册）
+3. **起守护** `fengchi-gov.sh`：轮询 `/proc/game_opt/game_pid` ⇒ 有游戏写 `scx`、无游戏写回 `uag`
+
+日志：`/data/adb/fengchi-boot.log`、`/data/adb/fengchi-gov.log`
+
+### 四、实测（两个方向都验过）
+~~~
+[14:56:06] game detected -> gov=scx     （第五人格前台 ⇒ policy0/policy7 = scx ✓）
+[15:04:36] idle -> uag                  （游戏退出 ⇒ 自动切回 uag ✓）
+稳定性：Oops=0 BUG=0 panic=0 ✓
+~~~
+
+### 五、依赖说明（回答"为什么不能在核里自动加载"）
+1. 内核**不能 insmod**，只能 `request_module()` ⇒ 仍是用户态 `modprobe`（换个触发者而已）
+2. 厂商 `.ko` 无源码 ⇒ **不可能编译进内核**
+3. 它们**本来就在 `modules.load` 里**（第 225/239 行）⇒ 出厂的正确设计就是 init 加载；
+   `oplus_bsp_game_opt` depends `qcom_lpm`；`oplus_bsp_sched_ext` depends `sched-walt, oplus_bsp_game_opt, oplus_bsp_sched_assist, minidump`
+   ⇒ 依赖链在自编内核上不满足 ⇒ init 加载失败（且失败不阻塞）⇒ 本模块**只补这一段**，其余交回出厂机制 ✓
+
+### 六、第三方依赖已降到最低
+- **不再依赖 SCRC 的脚本/守护**：云控注入（SCRC 的 `.enc`）与 OPGS（`ctn_patch.ko`/`opgs_daemon`）都**非必需**
+  （它们能锦上添花：按游戏细化云控、补 critical_task 节点；但**风驰的核心切换由本模块独立完成** ✓）
+- ⛔ 必须卸载 `IMS_VAROS`（官方调度屏蔽模块，与风驰直接冲突）
+- ⛔ 关掉 Scene 的调度；不要用第三方调度/线程模块

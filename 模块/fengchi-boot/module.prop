@@ -1,0 +1,6 @@
+id=fengchi-boot
+name=fengchi-boot（风驰自启）
+version=v1.0
+versionCode=1
+author=DeepSeek × 机主
+description=自编内核专用：开机加载厂商 scx/hmbird 栈，并在游戏运行时自动切换到 scx 调速器
