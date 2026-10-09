@@ -185,7 +185,7 @@
 opt6 FAIL/循环、a2 FAIL/循环。
 
 **由此产生并沿用至今的规矩**：候选内核「**新增导出符号 ∩ 厂商 .ko 引用符号名**」必须为空
-（tools/gate_new_exports.py，基准 vendor-ko-symbols.txt 199,295 个名字）；
+（tools/gate_new_exports.py，基准 （已归档）archive/2026-10-tidy/vendor-ko-symbols.txt 199,295 个名字）；
 上游增量里任何会新增导出符号的部分（EXPORT_SYMBOL*、DECLARE_HOOK / DEFINE_HOOK、CREATE_TRACE）
 一律不搬，只搬**不改变导出集**的纯实现修复。
 
