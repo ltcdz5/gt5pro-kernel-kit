@@ -1,7 +1,8 @@
 #!/system/bin/sh
-# 有游戏(game_opt 识别到) ⇒ scx；无游戏 ⇒ 回到官方默认 walt。每 4 秒轮询，幂等。
+# 有游戏(game_opt 识别到) ⇒ scx（风驰）；无游戏 ⇒ uag（OPPO 官方默认 governor）。
+# 注意：walt 是 Scene 的策略，不是官方默认；请不要在 Scene 里切换 CPU 调速器。
 LOG=/data/adb/fengchi-gov.log
-IDLE_GOV=walt
+IDLE_GOV=uag
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] $*" >> "$LOG"; }
 cur(){ cat /sys/devices/system/cpu/cpufreq/policy0/scaling_governor 2>/dev/null; }
 has_scx(){ cat /sys/devices/system/cpu/cpufreq/policy0/scaling_available_governors 2>/dev/null | tr ' ' '\n' | grep -qx scx; }

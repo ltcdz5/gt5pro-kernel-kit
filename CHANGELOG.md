@@ -1080,3 +1080,10 @@ echo 1000 > /sys/kernel/mm/lru_gen/min_ttl_ms
 无游戏 ⇒ walt（官方默认，实测本机未干预时即为 walt）
 ~~~
 实测：四集群全部回到 `walt` ✓；日志 `daemon start (idle_gov=walt)` ✓
+
+### 第15步更正 · v1.3：无游戏时回到 **uag**（不是 walt）
+**机主更正**：`walt` 是 **Scene 的调度策略**，**不是**官方默认 ✗。
+- 官方默认 = **`uag`** ✓（由 OPPO 官方模块 `cpufreq_uag`（98 KB，被 4 个模块依赖）提供；`sched_walt` 的依赖里也有它）
+- 因此守护脚本 `IDLE_GOV` 由 walt 改回 **uag** ✓，实测四集群全部 = uag ✓
+- ⚠️ 推论：**Scene 里若设置了 CPU 调速器（walt 等），会盖掉官方的 uag** ⇒ 使用风驰时应**关掉 Scene 的调速器/调度设置** ✗
+- 同时解释了一个现象：今晚最初观察到 `walt`（那时 Scene 已设过），重启后变回 `uag`（ROM 自己的默认）
