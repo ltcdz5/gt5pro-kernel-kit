@@ -1983,3 +1983,29 @@ opt112 改成 `30*HZ` + **抓到超时就停表** 后立刻冻结。
 
 分支 `opt142` / `opt142-rev2` / `opt143-doc` / `opt144` / `opt148` + 标签 `opt143` 全部就位，工作树干净。
 
+
+---
+
+## 十三、2026-10-12 归档：关闭路径 + 看门狗 60 秒窗口
+
+新增目录 `档案/20261012-关闭路径与看门狗窗口/`（3 篇）：
+
+| 文件 | 内容 |
+|---|---|
+| `报告-看门狗60秒窗口与t157复位.md` | hmbird 看门狗 enable 后**恰好 60 秒**首触（`hmbird.c:4579-4584` 的 `timeout/2` = `120*HZ/2`）；t157 R1/R2 均为 62 s 启用、R2 冻结；t158(10 s)/t159(30 s) 未跨窗口 ⇒ 全过是条件必然；minidump 256 MB 全量解析 |
+| `更正-本轮六条记录更正.md` | 六条显式更正（t152≠hung_task / Route B≠4行 / double-add 主嫌疑被推翻 / t158-t159 全过≠安全 / tick三件套是延迟补记 / md_HMBIRD 段全零） |
+| `取证-复位原因链与设备侧看门狗.md` | `/proc/last_boot_reason`、`abnormalreboot_count=total_10_dump_0_pmic_10`、**PMIC 看门狗 enable=1 timeout=254 rstype=7**、pstore 空、minidump 位置 |
+
+### 关键事实（供后续引用）
+
+1. **看门狗窗口**：`hmbird.c:64-70` `HMBIRD_WATCHDOG_MAX_TIMEOUT = 120*HZ`；enable 路径 `:4579-4584` 用 `timeout/2` 排队 ⇒ **首次触发 = enable 后 60 s**；workfn `:3405-3427` 每 60 s 自重排；disable 路径 `:4326` `cancel_delayed_work_sync`。
+2. **stall 上报链已划掉**：设备实测 `/proc/hmbird_sched/watchdog_enable = 0` ⇒ `check_rq_for_timeouts` 的 `|| watchdog_enable` 短路项为假 ⇒ 判据退化为「120 s 未被调度」⇒ 62 s 窗口内不可达。
+3. **t157 转储零致命签名**：整 256 MB 里 `list_add double add`/`__list_add_valid`/`WALT-BUG`/`kernel BUG`/`Oops`/`Kernel panic`/`Internal error`/`Unable to handle`/`BUG:`/`softlockup` 全 0；`HMBIRD_EXIT*`/`SWITCH_ERR*`/`err_exit` 全 0。末行 `[2790.347872] t157 R2 DISABLE up=2790` 之后连无关刷屏日志都停止 ⇒ **全机瞬时冻结后硬复位**。
+4. **minidump 格式**：`Raw_Dmp!`；段表从 `0x40` 起每记录 64 B（段名 `rec+0x24`，off `rec+0x04`，size `rec+0x0C`），164 段；段表本身 = ELF64 section header（`md_KELF_HDR.BIN`，无 SYMTAB）。`md_HMBIRD`(4096 B)/`md_KCNTXT`/`md_KRUNQUEUE`/`md_MEMINFO`/`md_KFTRACE` **全零**。
+5. **取证资产**：`System.map`（122,047 符号）+ `vmlinux`（567,709,744 B，含 DWARF，可 `pahole`）；`vmlinux` UTS 与转储 UTS 精确匹配（`6.1.141-android14-11-o-ltcdz5-v1.1-opt150 #75-ack304-v1.1-opt150`）。
+6. **下一轮判据**：W1 启用 ≥70 s × ≥5 轮 vs 10 s 组崩溃率；W2 窗口梯度 10/20/30/45/60 s × 20 轮看每使能秒崩溃率是否恒定；W3 关闭前 dmesg 是否有 `watchdog failed to check in for`；W4 把 `timeout/2` 改成 `timeout*4` 后 70 s 组是否不再崩。
+
+### 本轮同时划掉的两个嫌疑
+
+- **看门狗 stall 上报链**（见上 §2）。
+- **00:55:41 那次重启与 hmbird 无关**：`/proc/last_boot_reason` 第 2 行 = `reboot, from pid: 3368 (system_server) [2026-10-12 00:55:59]`，OPPO 分类由 `dump,` → `userspace request,` ⇒ 用户态主动 reboot（高置信）。
