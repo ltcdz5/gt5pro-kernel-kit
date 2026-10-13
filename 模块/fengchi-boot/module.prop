@@ -1,6 +1,6 @@
 id=fengchi-boot
-name=fengchi-boot（风驰自启 + MGLRU）
-version=v2.0
-versionCode=11
+name=fengchi-boot（风驰自启 + hmbird/scx 同时在线 + MGLRU）
+version=v2.7
+versionCode=18
 author=github$ltcdz5 / 酷安$天玑1100逆天功耗
-description=配套自编内核使用：开机准备官方调度环境、按依赖序加载厂商 scx/hmbird 模块栈、恢复 MGLRU、自动拉起第三方关键线程组件；游戏时自动切 scx 并打开 ct_enable，离开游戏延迟后切回官方默认并还原。自带看门狗与残留清理。日志在 Download，配置见 fengchi.conf。
+description=配套自编内核使用：开机准备官方调度环境、按依赖序加载厂商 scx/hmbird 模块栈、恢复 MGLRU、自动拉起第三方关键线程组件。★v2.6★：按 t121（oc-glmf）独立复核补两件事 —— ①版本闸门真正 fail-closed（D4：未验证内核或 opt<MIN_OPT ⇒ HMBIRD_CTL=0 且 GOV_SWITCH=0；且 HMBIRD_CTL=0 时不再对 hmbird 做任何写或在线探针，只保留 SAFE_RESTORE/VETO_OFF 无害化动作）；②修补内核自禁盲区（F1：真状态解析改为两路 dmesg 信号按时间序取最新，内核自禁收尾行 hmbird disabled finished 也会被识别）。★v2.5★：按 t107 独立复核修 D1~D8 —— ①退出游戏后 governor 不再永久停在 scx（D1，KEEP_SCX_ON_IDLE 默认 0 且 idle 一律拉回）；②内核版本闸门不再半开（D2/D4：解析失败或 <opt160 时 HMBIRD_CTL=0 且 GOV_SWITCH=0，fail-closed，但仍保留把 gov 拉回的安全纠错）；③顺序闸门改用【真实状态】判据（D3：判写入 rc + dmesg 的 hmbird_ctrl enabled 字段，不再拿 /proc 意图值当在线）；④退出顺序改为先关 hmbird 再切 governor（D8，避免 restore 把 scx 写回）；⑤VETO_OFF 默认 0（D6）；⑥看门狗新增心跳判据与重启退避（D9）。★v2.4★：内核 ≥ opt160 时默认同时开启 hmbird 与 scx 调速器（顺序闸门保证先 hmbird 后 scx）。★v2.3★：默认不自动开 hmbird/不切 scx。自带看门狗与残留清理。日志在 Download，配置见 fengchi.conf。
