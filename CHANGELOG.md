@@ -2009,3 +2009,148 @@ opt112 改成 `30*HZ` + **抓到超时就停表** 后立刻冻结。
 
 - **看门狗 stall 上报链**（见上 §2）。
 - **00:55:41 那次重启与 hmbird 无关**：`/proc/last_boot_reason` 第 2 行 = `reboot, from pid: 3368 (system_server) [2026-10-12 00:55:59]`，OPPO 分类由 `dump,` → `userspace request,` ⇒ 用户态主动 reboot（高置信）。
+
+
+
+---
+
+## 三十三、2026-10-13 归档：opt149 → opt162 全景 + 风驰守护 v2.6 + 四仓状态
+
+本章覆盖 **opt149 → opt162** 共 14 个内核构建（含 opt151crc / opt161b 两个补丁版），时间跨度 2026-10-12 → 2026-10-13。
+主线索是一条**因果链**：CRC 漏跑（opt151）→ `check_preempt_tick` 空指针崩溃（t166 / opt152）→
+`balance_callback` 契约违反（opt155 / opt158）→ 簇窗口不可见导致的饿死（opt159）→ hmbird 与 scx 调速器共存（opt160 / opt161b / opt162）。
+
+### 目录
+
+- [一、版本明细表（opt149 → opt162）](#一版本明细表opt149--opt162)
+- [二、★四道 CRC 门禁★（为什么必须有消费端独立一道）](#二四道-crc-门禁为什么必须有消费端独立一道)
+- [三、★风驰守护 fengchi-boot v2.6★](#三风驰守护-fengchi-boot-v26)
+- [四、★踩坑（本轮新增）★](#四踩坑本轮新增)
+- [五、四个仓库本轮的实际动作](#五四个仓库本轮的实际动作)
+- [六、未验证 / 待办](#六未验证--待办)
+
+---
+
+### 一、版本明细表（opt149 → opt162）
+
+| 版本 | 提交 | 镜像（repacked boot）md5 | 闸门 | 上机结果 | 关键结论 | 状态词 |
+|---|---|---|---|---|---|---|
+| opt149 | `f2f7ca20bc28` | 未验证（本轮未取得） | — | 未单独上机 | 基准提交，其后的 `22e4395f3ce5` 拆掉 BPF struct_ops 注册面 | 📦留档 |
+| opt150 | `22e4395f3ce5` | 未验证（本轮未取得） | — | t152 重启 / t153 对照存活 / t155 存活 60 s | 拆 BPF struct_ops **没有**解决 hmbird 启用即挂；」opt150 本身稳定」是空结论（t153 未让改动路径执行）| ⛔否证（「拆注册面即可」） |
+| opt151 | — | `boot-v1.1-opt151crc-repacked.img` = `1963c1b01e410f02fdeb1ba62fa974a1`（表见 opt151crc） | 原构建**未过**（漏跑 CRC） | t166 **panic 崩溃** | ★漏跑 `patch_crc_targeted.py` ⇒ CRC 是自然值 ⇒ `oplus_bsp_sched_ext.ko` 加载失败；且崩在 `fair.c:5004` 的 `se->vruntime`（`se == NULL`）| ⛔否证（CRC 漏跑的唯一样本） |
+| opt151crc | — | `1963c1b01e410f02fdeb1ba62fa974a1`；`Image.opt151.crc` = `ac9d80507fcf780b18352966a13d2eef` | 四道全过 | 未单独上机 | 字节级核验：全文件仅 12 字节不同 = 3 处 × 4 字节；四个 `__crc_*` 符号地址换算后精确等于覆写偏移 | 📦留档 |
+| opt152 | — | `1f3376e2a45ec36adccae8c0a196f3f3`；`Image.opt152.crc` = `98c8f69ffe5f0df69c45c02e31a66176` | 四道全过 | t167 120 s 零异常 | `check_preempt_tick` 判空修复（`if (!se) return;`，+23 行）生效；`_text` 动态取值，槽位 opt151 → opt152 位移 `0x40` | ✅交付 |
+| opt153 | — | 未验证（本轮未取得） | — | t174 秒冻，用户强制重启 | **五因素叠加**（scx + hmbird + 8 核满载 + 冷启动游戏 + t42 v3）⇒ 无法归因；现场日志被 `dmesg -C` 清掉 | ⛔否证（实验设计失败） |
+| opt154 | — | 未验证（本轮未取得） | — | t176 卡顿（load 167）| `ext_ctrl+0xcc0` 撞 `rq->balance_callback` 断言；已三重硬证据核实设备确实跑 opt154 | ⛔否证 |
+| opt155 | — | 未验证（本轮未取得） | — | t177 崩溃（kernel crash Minidump）| `ext_ctrl`/`task_rq_lock` 断言消失（**部分有效**），但暴露 `runq=901` 的 `nr_running` 疑云（后由 wb-2 判「不泄漏」并记为未复现）| ⛔否证 |
+| opt156 | — | boot = `eff05729dd5a94db77ca5a33781efd57`；`Image.opt156.crc` = `65a6980943ecd9ecb7a7bf08ebacbbf0` | 四道全过 | 已刷入 | ★诊断数据从假变真★：`hmbird_stats` 原为硬编码 `seq_puts(m, "...:0, 0")`，换成现成的 `stats_print()` + 打开 `slim_stats` 门控 | ✅交付 |
+| opt157 | — | 未验证（本轮未取得） | — | — | 看门狗 60 s 窗口专题（见 2026-10-12 归档章）| 📦留档 |
+| opt158 | — | boot = `ef87be163316ea5e1748e36265d5cbf4`；`Image.opt158.crc` = `05f9aa1c5c09cf9a5fb42e175c7235b6` | 四道全过 | t183 五判据全 0 | ★balance_callback 真根因★：我们删掉了参照补丁的 `reject_change_to_scx` 过滤；正解是「不产生回调」而非「加 drain」| ✅交付 |
+| opt159 | — | boot = `6ed952864670512d00414e6c115ee380`；`Image.opt159.crc` = `bff5d22600c02828aa18ca99d0176e3a` | 四道全过 | t184 满载 200 s 全过 | ★饿死修复★：`gen_cluster_ctx_separate` 给 BIG 的窗口 `[5,8)` / LITTLE `[8,10)` 使 `gdsqs[8]/[9]` 对 BIG 不可见；`consume_timeout_dsq` 放宽到 `[5,10)` | ✅交付 |
+| opt160 | — | boot = `bfd016809301241a1c1d81fac74af5ab`；`Image.opt160.crc` = `937fa792b6b58a9072e984510d8c07c5` | 四道全过 | 未单独上机 | 停用 `hmbird_watchdog_workfn` 内每 60 s 把 governor 从 scx 抢回 uag 的周期性强切（`#if 0` 包裹，保留原文注释）；二进制核验 `cpufreq` 调用点 = 0 | 📦留档 |
+| opt161 | `804712f03ccc` | 未验证（本轮未取得） | 四道全过 | — | t93 governor 否决机制（`hmbird_gov_veto`）| 📦留档 |
+| opt161b | `1d6ae8398186` | `558f350d9e7e4813a612999662bb0f79`；`Image.opt161b.crc` = `922f1f9b00d98ea4d342c7e4da691346` | 四道全过 | t190 共存 200 s / t188 否决消融 | **D2 修复**：`err_unlock` 路径 disarm gov veto（武装永久泄漏 ⇒ 用户态再也设不了 scx）；槽位 sk `0x17e4aa4` / iso `0x17eb060` / tscx `0x17edd1c` | ✅交付 |
+| opt162 | `7cc87ec0d8dc` | `80a9c6251d9012241bb392f21e0a5e38`；`Image.opt162.crc` = `918c4c8551b632d9a01063282890017b` | 四道全过 | opt162 双测 + t194 全通过 | `hmbird_partial_util` core_param 包装（默认 `N` = 与 opt161b 逐位一致，置 `Y` 恢复工厂 `get_cpus_max_util()` 实现）；槽位 sk `0x17e4b64` / iso `0x17eb120` / tscx `0x17edddc` | ★现役 |
+
+> **CRC 槽位随版本漂移**：opt160 = `0x17e48e4/0x17eaea0/0x17edb5c`，opt161/opt161b = `0x17e4aa4/0x17eb060/0x17edd1c`，opt162 = `0x17e4b64/0x17eb120/0x17edddc`。
+> 三个取值恒为 `f5845708 / cb6a4c44 / b3071c68`。**绝不能硬编码偏移**——`patch_crc_targeted_v2.py` / `gate_crc_v2.sh` 均从 vmlinux 的 `__crc_*` 符号地址动态换算。
+
+---
+
+### 二、★四道 CRC 门禁★（为什么必须有消费端独立一道）
+
+`patch_crc_targeted_v2.py` 的全部符号都 SKIP 时也返回 `rc=0` ⇒ **不能只靠它判断产物是否已覆写**，必须用独立门禁验产物字节。
+
+| 层 | 脚本 | 断言 | 调用要点 |
+|---|---|---|---|
+| 生产 | `patch_crc_targeted_v2.py` | `written=3 skipped=0 total=4`，SKIP 即 rc=1，含位置断言与摘要行 | v1 静默 `return 0` 是 fail-open |
+| 出片 | `gate_crc_v2.sh` | 3 个真符号槽位 + 计数==1 + 旧值残留==0 + `_text` **动态取自 vmlinux**（0xffffffc008000000）| — |
+| 出片 | `gate_crc_diff5.sh` | 覆写前后等长 + 恰差 12 字节 + 三个连续槽位 | — |
+| ★消费★ | `gate_crc_pre.py` | 打包/刷入前拦截 | ★必须用 `python3` 调用★；拦住不经 `build_release.sh` 的路径 |
+
+**为什么消费端必须有独立一道**：实测 142 个打包/刷入入口里只有 `build_release.sh` 带 CRC 门禁；`_repack_generic.py` / `make_opt60.py` / `verify_image.sh` 全都不看 CRC。
+
+**踩过的三个脚本缺陷**：
+
+| | 缺陷 | 后果 |
+|---|---|---|
+| B1 | `wslpath -w` 把路径转成 `F:\...` 却交给 WSL `/usr/bin/python3` | 直接 `FileNotFoundError` die |
+| B2 | 第 3b 步硬编码 opt151 的三个偏移 | 读已正确覆写的 opt150 得垃圾值 ⇒ 判 False ⇒ **恒 FAIL**，opt152+ 必挂 |
+| B3 | 残留 `if False else` 与多一个引号 | 语法 / 死代码 |
+
+v3 已修：用 `/mnt` 路径；不自己读槽位，改为「boot 解 payload → `gate_crc_v2` 判」；`bash -n` 通过。
+
+**另一个坑**：最初的「全 SKIP 也 rc=0」之所以危险，在于它**比 fail-closed 更糟** —— 会让人以为查过了。
+
+---
+
+### 三、★风驰守护 fengchi-boot v2.6★
+
+它做三件事：**厂商模块栈 insmod**（依赖序 `oplus_bsp_game_opt` → `oplus_bsp_sched_assist` → `oplus_bsp_sched_ext`）、**MGLRU**、**看门狗 + governor 守护**。
+
+| 项 | 值 |
+|---|---|
+| zip | `fengchi-boot-v2.6.zip`，19,976 B，md5 `3737bd566c0d373bf61b6403572d8314`，5 条目 mode 0777 |
+| versionCode | 17 |
+| 独立复核 | oc-glmf / t126 = **PASS**：5 项必核命中 / 12+ 处内核行号回源零偏差 / 25 场景仿真全 PASS |
+
+两项主要改进：
+
+1. **D4 版本闸门 fail-closed 真正落地**：解析不出 opt 号（含厂商串 `o-xxxx`）或 `opt < MIN_OPT=160` ⇒ `HMBIRD_CTL=0` + `GOV_SWITCH=0` 同步收，且 `HMBIRD_CTL=0` 时**连在线探针都不做**（不写 hmbird、不判在线），只留 `SAFE_RESTORE` 与 `VETO_OFF`。
+2. **F1 内核自禁盲区**：内核自禁只打 B 路（`hmbird disabled finished`）不打 A 路（`hmbird_ctrl() rc=`）⇒ 单看 A 会拿到上一条陈旧的 `0 1`。改为 A/B **两路按时间序取最新**。S18b 对照组屏蔽 B 路后复现出裸 `gov=scx`，证盲区真实存在。
+
+#### ★架构事实：守护模块 = scx governor 的唯一下载器★
+
+`scx` governor 由厂商 `oplus_bsp_sched_ext.ko` 提供，而设备上**唯一 insmod 它的是我们自己的 `/data/adb/modules/fengchi-boot/service.sh`**（依赖序如上）。
+2026-10-13 16:23 为安全 `touch disable` 停用整个守护模块 ⇒ **顺手把 scx governor 一起删掉了**（`avail = walt uag conservative powersave performance schedutil`）。
+
+⇒ **停用守护模块 = 同时移除 scx governor。** 重启后 `scx` governor 会再次消失；要跑含 scx 的实验必须先手动 insmod 那两个 .ko，或恢复守护模块。
+
+#### t194 附带确认
+
+- `cpuinfo_transition_latency` 四个 policy **全为 0** ⇒ `cpufreq_policy_transition_delay_us()` 返回 1000 µs（`LATENCY_MULTIPLIER`）⇒ uag 与 scx 的默认速率门限都是 1 ms 级；「uag 有门限、scx 没有」这个差异**不存在**。
+- 那几条 `Call trace:` 是**厂商 TEE 的周期栈打印**（`__scm_smc_call` → `qcom_scm` → `smcinvoke_dlkm`），每 ~61.4 s 一次，与调度无关 ⇒ 判据 `warn` 应收窄为 `WARNING:`，不要把 `Call trace:` 算进去。
+
+---
+
+### 四、★踩坑（本轮新增）★
+
+| 坑 | 现象 | 正确做法 |
+|---|---|---|
+| `edit` 写回 `.ps1` 丢 UTF-8 BOM | deploy-kernel.ps1 改完 `BOM=false`，PowerShell 5 读无 BOM 的 `.ps1` 按 ANSI 解码，中文路径全乱码 | 用 Node 显式补回 `\uFEFF` 并复核 `BOM=true`；**改 .ps1 后必须回查 BOM** |
+| toybox `sed` 不支持 GNU `\?` | 脚本里 `\?` 静默不匹配 | 用 POSIX 字符类或换 `grep -E` |
+| `adb push` 到 `su -c 'mkdir'` 建的目录失败 | 目录属主/权限导致 push 被拒 | push 前先 `chmod 777` |
+| `pgrep -f local/tmp` 会杀掉脚本自身 | 脚本路径本身含 `local/tmp` 子串 ⇒ 自杀 | 用精确匹配或排除自身 pid |
+
+---
+
+### 五、四个仓库本轮的实际动作
+
+| 仓库 | 提交号 / 文件 | 一句话 |
+|---|---|---|
+| kernel-kit | `e00449e` | CRC targeted-overwrite 门禁进发布前检查清单 |
+| kernel-kit | `b4d5802`（远端 master）| 当前状态与版本对齐 opt162 + 风驰 v2.6 + 架构事实节 |
+| lab（gt5pro-kernel-lab）| `4d6e796`（远端 master）| 新增 `2026-10-13/` 阶段 H 目录（README + 10 份报告），README 目录表与高危备忘各加条目 |
+| gt5pro-hmbird | 草稿 `F:\工作区\_audit\draft-hmbird-repo.md`（237 行）| oc-glmf 独立复核中（t134）；★落地后另补一条★，本表不预先填写 |
+| gt5pro-kernel-src | 见 §6 待决 | **本轮未推送**，等机主在 A/B/C/D 四方案里选一个 |
+
+#### kernel-src 的硬阻断（为什么不能照抄 `7a322587506b` 的减法）
+
+- `kernel/sched/hmbird/`（12 文件，2026-10-09 由 `2a08b68fc280`「opt61 (step 8a-A): import the hmbird sched_class core family」引入）直接 `#include "slim.h"`（`hmbird.c:17` / `hmbird_misc.c:14` / `hmbird_sched_proc.c:15`），并用到 20 个 `slim_*` 符号，其**定义**在 `kernel/sched/slim_sysctl.c`。
+- 而 `slim.h` / `slim_sysctl.c` 正是机主 2026-10-09 决定**不公开**的那两份（`NOTICE.md` §三）。
+- ⇒ **发 hmbird 家族就必须连 slim 一起发，二者同进同退**；`7a322587506b` 的「删 4 个文件 + 配套改 build_policy.c / ext.c / gki_defconfig / Kconfig.preempt」在 opt162 上不成立（还会有 `hmbird_export.c` 的 `iso_masks` 等符号需要补桩，清单未验证，必须一次真实编译定稿）。
+- `main` 与 `opt162` **无共同祖先**（`git merge-base` 为空）；`main` 最后一次树同步 = `1a522ca94cfc`（2026-10-09），法务清理 = `7a322587506b`（2026-10-12）；远端 tag 只有 `v1.1-opt60` → `e4cde491202f`。
+
+四方案：**A** 减法快照（需一次编译 + 双闸门 + 493 个厂商模块审计；发布树 ≠ 现役内核，须在 `NOTICE.md` / `README.md` 写明）/ **B** 全量快照（需机主改口，重评 slim 再分发风险）/ **C** 只在 `main` 补一份状态说明（`STATUS.md` 正文已备好，未推送）/ **D** 本轮不动。
+
+---
+
+### 六、未验证 / 待办
+
+1. **opt149 / opt150 / opt153 / opt154 / opt155 / opt157 / opt161 的镜像 md5 本轮未取得**（表中标「未验证」）—— 不编造。
+2. `nr_running` 膨胀到 901（t177）：wb-2 确认「不泄漏」（`add_nr_running`/`sub_nr_running` 同受 `HMBIRD_TASK_QUEUED` 门控），判为**未复现、原因未定**，且 t177 以 kernel crash 收尾 ⇒ 读数可能来自已损坏镜像。
+3. opt162 的 `partial_util=Y` 只在**轻载**下测了 90 s；历史「61 s 自禁」未复现，要判死需一次**带 8 线程负载**的 Y 臂（未做）。
+4. 16:55 那次静默硬挂**未复现**，也未在真实游戏负载下复测（t194 本轮未加载游戏，遵 D14）。
+5. `t194-judge.py` 未能在设备上跑（设备无 `python3`）⇒ 判据 M1–M4 是人工核对；judge 需在 WSL 里对两份 residue 文件离线跑一次。
+6. `Call trace = 8` 的来源已在 opt162 轮澄清（厂商 TEE 周期栈打印），但 t152/t167 当时的该计数仍未回查。
+7. kernel-src 推送等机主答复（A/B/C/D）。
