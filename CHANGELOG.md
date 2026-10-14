@@ -2154,3 +2154,169 @@ v3 已修：用 `/mnt` 路径；不自己读槽位，改为「boot 解 payload �
 5. `t194-judge.py` 未能在设备上跑（设备无 `python3`）⇒ 判据 M1–M4 是人工核对；judge 需在 WSL 里对两份 residue 文件离线跑一次。
 6. `Call trace = 8` 的来源已在 opt162 轮澄清（厂商 TEE 周期栈打印），但 t152/t167 当时的该计数仍未回查。
 7. kernel-src 推送等机主答复（A/B/C/D）。
+
+---
+
+## 三十四、2026-10-14 归档：★P0 判决实验落地 —— 核心簇被 hmbird 排除出调度视野★ + p3v2 r2 + 守护 v2.7 定根因
+
+本章覆盖 **2026-10-14 12:4x → 14:0x** 的一轮。内核版本**未变**（仍是 opt162 `7cc87ec0d8dc`，未重编未刷机）；
+本轮的价值在**把 P0 从「不知道是触发问题还是路径问题」推进到「已判定」**，并顺手把三份文档/脚本的缺陷修掉。
+设备：boot_id `72af16f5-7ce3-477c-82d9-0e4751c5fa11`（全程未重启，与 p2 判决实验同一 boot）。
+
+### 目录
+
+- [一、★核心结论：cpu5/6/7 不是坏的，是被排除出调度视野★](#一核心结论cpu567-不是坏的是被排除出调度视野)
+- [二、判决实验的三条独立证据](#二判决实验的三条独立证据)
+- [三、p3v2 判决脚本（新）与它被复核救下的 3 条 blocker](#三p3v2-判决脚本新与它被复核救下的-3-条-blocker)
+- [四、守护 fengchi-boot：v2.7 已在设备上 + dmesg WARN 定根因](#四守护-fengchi-bootv27-已在设备上--dmesg-warn-定根因)
+- [五、纪律与文档修订](#五纪律与文档修订)
+- [六、★本轮新增踩坑（4 条）★](#六本轮新增踩坑4-条)
+- [七、四仓状态](#七四仓状态)
+- [八、未验证 / 待办](#八未验证--待办)
+
+---
+
+### 一、★核心结论：cpu5/6/7 不是坏的，是被排除出调度视野★
+
+**同样 3 个线程，用 `taskset e0`（bit5/6/7）硬绑到 cpu5/6/7：**
+
+| 条件 | cpu5 / cpu6 / cpu7 | 频率 f5 / f6 / f7 |
+|---|---|---|
+| hmbird **OFF** + gov=uag | **100 / 100 / 100** | 2572800 / 2572800 / 2169600 |
+| hmbird **ON** + gov=scx | **0 / 1 / 0** | 499200 / 499200 / 672000（最低档） |
+
+⇒ **CPU 物理、调频、thermal 全部正常**（OFF 时三核满频 100%），问题纯粹是 hmbird 在线时把 cpu5/6/7
+从「任务可运行的核」里剔除，**连显式亲和性（`sched_setaffinity`）都绕不过去**。
+
+**这直接改变了修复方向**：修复**不能**走 `partial_ctrl` / `isolate_ctrl` / `iso_free_rescue` 这三个用户态节点
+（见 §二，实测全部无效），必须去 hmbird 类内部改「哪些核算可运行核」那一层。
+
+### 二、判决实验的三条独立证据
+
+#### 2.1 A0 基线复现（12 个等优先级 spin，gov=scx + `scx_enable=1`）
+
+`A0 DONE ok=1 spin=12`，12 个样本**全部**：
+
+```
+cpu0=100 cpu1=100 cpu2=12~60 cpu3=9~59 cpu4=11~61 cpu5=0 cpu6=0 cpu7=0
+```
+
+与 p2 的 ARM1 完全一致 ⇒ **问题已复现**。前置闸门全按设计工作：`SETUP step3 gov_scx_all=1 NPOL=4 gov=[0=scx 2=scx 5=scx 7=scx]`、
+`spin=12 want=12`、CB 判决输入非空。
+
+#### 2.2 三个用户态开关全部无效
+
+A1 立刻中止并暴露关键事实：
+
+```
+ABORT reason=WNODE_READBACK_MISMATCH w=5 /proc/hmbird_sched/partial_ctrl want=1 got=0
+```
+
+`partial_ctrl` 三态写入门控对照（`z_pcgate.sh`）：
+
+| 状态 | 写 1 后 immediate / +2s / +5s |
+|---|---|
+| **S1** hmbird **OFF** + gov=uag | `1 / 1 / 1` ⇒ **写得住** |
+| **S2** hmbird **ON** + gov=uag | `0 / 0 / 0` ⇒ **立刻被清** |
+| **S3** hmbird **ON** + gov=scx | `0 / 0 / 0` ⇒ **立刻被清** |
+| **S3b** 同 S3 **+ 12 线程负载** | `0 / 0 / 0` ⇒ **立刻被清** |
+
+⇒ 与 governor 无关、与负载无关，**只要 hmbird 在线就写不住**。
+
+**源码机制**（`kernel/sched/hmbird_sched_proc_main.c` + `kernel/sched/hmbird/hmbird.c`）：
+- `partial_ctrl` 写的是裸 int `partial_enable`（proc 注册 `:400-403`；写处理器 `hmbird_common_write :201-211` 直接 `set_proc_buf_val`，**无任何保护**）。
+- 但 `partial_dynamic_ctrl()`（`hmbird.c:1006-1048`）由放置/唤醒路径 `:3300` 频繁调用；`l_under && b_under` 成立时执行 `set_partial_rescue(false,false,false)`（`:1032-1033`）→ `set_partial_status` → `WRITE_ONCE(partial_enable, false)`（`:620-625`）⇒ **用户写进去的值被状态机在下一拍收回**。
+- hmbird OFF 时该函数不被调用 ⇒ S1 写得住。
+
+**`iso_free_rescue`（复核指出的「不受 partial_enable 约束」出口）同样无效**（`z_fix.sh`）：
+
+| 臂 | 条件 | cpu5/6/7 |
+|---|---|---|
+| B0 | hmbird ON + scx + 12 负载 | `0 / 0 / 0` |
+| B1 | 加 `iso_free_rescue=1`（**读回 1，保持住了**） | `1 / 0 / 0` ⇒ **无效** |
+| B2 | 再叠 `partial_ctrl=1`+`isolate_ctrl=1` | `pc`/`ic` **读回均 0**（被清）⇒ **无效** |
+
+#### 2.3 判决对照（`z_pin2.sh`）
+
+见 §一 表格。★关键教训：本机 toybox `taskset` **不支持 `-c`**，要用 hex mask `taskset e0`★。
+
+### 三、p3v2 判决脚本（新）与它被复核救下的 3 条 blocker
+
+新脚本 `_audit/_push/p3v2.sh`（取代被判 needs_revision 的 `p3.sh`）按《复核-p3脚本设计.md》§5 的 M1–M14 重写。
+**独立复核判 needs_revision，发现 3 条 blocker —— 若不修，这一版无论怎么跑都出不了判决：**
+
+| finding | 问题 | 后果 |
+|---|---|---|
+| **F0** | `cleanup` 在判决**之前** `rm -f "$CB"` | 判决读空文件 ⇒ **恒 `INVALID_NO_DATA`** |
+| **F2** | `cpu_list online` 拿范围串 `0-7` 没展开 ⇒ `NCPU=1` | 采样要求字段数==NCPU ⇒ **首样本即 NO_DATA** |
+| **F3** | 负载数只 log 不门控 | 负载缺失会假判 `PATH_BROKEN_OR_INEFFECTIVE`（M1 未闭环） |
+| **F-gov** | 全脚本没有任何一处把 governor 设成 scx | 而 p2 复现条件是 hmbird ON **+ scx** ⇒ A 臂前提不成立 |
+
+r2 已全部闭环（F0/F2/F3/F-gov/F5/F6/F7/F9/F11/F12），未处置留待裁定：F4/F8/F10。
+
+| 产物 | 大小 / 行数 / md5 |
+|---|---|
+| `p3v2.sh`（r2） | 835 行 / 39,686 B / `8068862d0a71a42c68cba948a1f6a693`（CRLF=0，`sh -n` exit 0） |
+| `p3v2-实现说明.md` | 159 行 / 23,580 B / `3c06961397644692400b8fc22955da6e` |
+| `p3v2-r2-selftest.sh` | 65 行 / `398a497c49f92538ecc913f3797370ed`（12/12 PASS） |
+| `p3v2_driver3.sh` | 真机驱动（★正确顺序：先循环杀守护停稳，再启用 hmbird★） |
+| `z_pcgate.sh` / `z_fix.sh` / `z_pin2.sh` | 三态写入门控 / iso_free_rescue 尝试 / 绑核判决 |
+
+### 四、守护 fengchi-boot：v2.7 已在设备上 + dmesg WARN 定根因
+
+- ★**台账纠正**★：设备上跑的是 **v2.7（versionCode 18）**，不是 §三十三 与《接手文档》写的 v2.6。
+  实测 md5：gov `8b295d6d19de1c4bb391d2437900aadc`(29,961 B) / watch `da58971fb35ebb68914ce5786b397ee3`(3,438 B) /
+  conf `82501b82b8d1bc6e767c15a6bfc6f494`(6,641 B) / service `0b82bbb3eb197a9a8e826b6d06bd1292`(5,325 B) / prop `8675a08fcb3454d6039ffa4af15ee23e`。
+- **dmesg 真状态源 WARN 定根因**：只出现 2 次（10-13 18:09:05 / 18:22:46），来自 v2.6 的
+  `printf '%s\n' "$_k"` 把约 2 MB 整份 dmesg 当 argv 传给外部 printf ⇒ 触发 `MAX_ARG_STRLEN = PAGE_SIZE*32 = 128 KiB` 的
+  **E2BIG** ⇒ 返回空串 ⇒ probe 误判「不可用」。**铁证**：同一 boot 内早 26 秒 `service.sh` 用管道 grep 读同一 ring **成功**。
+  ⇒ **设备已是 v2.7（改走文件路径），无需部署功能修复**；残余加固补丁只动 probe 的日志分支。
+- **写放大**：失败模式约 **1.33–1.53 GB/游戏小时**（复核的 1.9 GB/h 用了代码不可达的 4 s 周期）；
+  99%+ 来自 `dmesg_state()` 每次把约 2 MB dmesg 落到 `/data/adb` 临时文件再删。修法 diff 已出，
+  ★但独立复核判 needs_revision：**F1 是 blocker**——改动 A 在 `dmesg` 退出码 0 且输出为空时返回空串、**丢失 `FAIL` 语义** ⇒ 路径 1 会把 `""` 当「在线」⇒ **可能误放行 scx**（会伤到非游戏应用调度）★。
+
+### 五、纪律与文档修订
+
+- `纪律-实验规范.md` 按二轮复核的 R1–R8 修订（37,061 B / md5 `4f06ae87666168c2e3a04b04c6619b31`）；
+  ★**D1~D14 字节级回归仍 `611f782850d9e6b59457b5dd4103e827`**（26,224 B / 625 行 / CR=0）★。
+- 源码级根因文档 `_排查-CPU0-1根因-源码级.md` 按独立复核（15 条 finding）修订到 r2：
+  1,313 行 / 109,120 B / md5 `10BA70743763B7044856A617D6198DF0`。
+  ★**结论 1 现为条件结论**，引用必须带 4 个前提：`iso_masks.little` 非空 且 `big` 非空 且 `iso_free_rescue==0` 且 `partial_enable==0`★。
+  另：结论「`/proc/sys/oplus_sched_ext/cpus_*` 是可读的 D13 掩码路径」**已被设备实测证伪**（该目录不存在），
+  替换为「本机读不到；唯一未采样候选 `/proc/sys/walt/`」。
+
+### 六、★本轮新增踩坑（4 条）★
+
+1. ★**先停守护，再启用 hmbird**★：守护在无游戏 idle 态会**主动把 hmbird 关掉**（守护日志实测
+   `hmbird -> 0 (was 1) rc=0 意图读回=[0] 真状态(dmesg)=[0 0]`）。且守护 watchdog 会**自愈重启**，
+   必须**循环杀 + 断言 `pgrep -f fengchi-` == 0**（p3v2 内部杀 10 次、驱动杀 15 次才压住）。
+   本轮第一次驱动就是因为顺序错（先启用后停守护）被守护抢关而白跑一轮。
+2. ★**toybox `taskset` 不支持 `-c`**★（`taskset: Unknown option 'c'`），要用 hex mask：`taskset e0`（bit5/6/7）。
+3. ★**PowerShell 内联 `adb shell` 含 `$()` / 双引号会被本机原生参数转义破坏**★（代号 BUG-13，本轮复现两次）
+   ⇒ 一律「本地写 LF 脚本 → `adb push` → `su -c 'sh ...'`」。
+4. ★**成员报的交付物路径可能带前导下划线**★（本轮两次：`_缺陷-…` / `_排查-…` / `_复核-p3v2…`）
+   ⇒ D11 必须按**模式**搜目录，不能只按任务书写的字面路径 glob。
+
+### 七、四仓状态
+
+| 仓库 | 本轮动作 |
+|---|---|
+| kernel-kit | 本 CHANGELOG 新章（三十四）；`工作流.md` 已更新（待跑脚本改 p3v2、守护版本订正 v2.7、§10 待办与分工） |
+| lab（gt5pro-kernel-lab） | 新增 `2026-10-14/` 阶段目录（判决实验现场 + 探针脚本 + 结论） |
+| gt5pro-hmbird | `docs/changelog.md` 新章；新增核心簇判决记录；★`hmbird-内核态调度类-进展.md` 的「已可用」结论需补「核心簇被排除」这一限定★ |
+| gt5pro-kernel-src | **仍未推送**，等机主在 A/B/C/D 四方案里选一个（见 §三十三 与《待决-kernel-src快照更新与法务边界.md》） |
+
+### 八、未验证 / 待办
+
+1. ★**最高优先级**★：源码定位「hmbird 在线时 cpu5/6/7 连 `taskset` 绑核都跑不动」的那一处机制
+   （候选：`hmbird.c:1400-1405` EXCLUSIVE 早退、`:1420-1434` iso_free_rescue 出口、
+   `task_only_blongs_to_cluster` 经 `:3273→:1276` 与消费侧共用 `gen_cluster_ctx_separate` 的放置侧路径）。
+   **要能解释「为什么显式 `sched_setaffinity` 也不能让任务在这些核上运行」。**
+2. `iso_exclusive="5,6,7"` 是否由厂商 `scx_main.c:1070` 无条件覆写内核 `iso_masks` 造成 —— 未判定。
+3. 三个用户态开关（`partial_ctrl` / `isolate_ctrl` / `iso_free_rescue`）已被判**无效**，
+   后续修复不要再在它们上面花真机轮次。
+4. 要动内核改 hmbird 需 **WSL 恢复**（增量编译 94 s + 四道 CRC 门禁 + 刷 `boot_a`，约 7 分钟/轮）；
+   本轮 WSL 因 `HCS_E_HYPERV_NOT_INSTALLED` 不可用。
+5. 写放大补丁的 F1 未修（会误放行 scx）；F4/F8/F10（p3v2）未裁定。
+6. ★D14 标注★：判决实验期间前台为 `com.deepseek.chat`（机主在用手机）。各臂对照在同污染条件下取得，
+   且 A0 复现与 P0/P1 绑核对照均为同 run 内前后对照 ⇒ **方向可信**；绝对数值（cpu2–4 的零散占比）可能被用户负载抬高，不作结论依据。
