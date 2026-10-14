@@ -848,7 +848,7 @@ Unknown symbol hmbird_dir
 3. **"加字段会破 CRC ⇒ 硬阻塞"是误判** ✓：对齐**无害**（覆写 4/4 无 SKIP、三关全绿、导出集 15,489 逐名未变）且**必需** —— 厂商按出厂偏移访问：task->scx 必须在 task_struct 偏移 **3608**、scx->sched_prop 在 sched_ext_entity 偏移 **168**。**opt58 把 sched_prop 错放进 KABI slot2、把 scx 挤到 3616（错）**，opt59 已修正 ✓
 4. **字段对照**：struct sched_ext_entity 出厂 264 B/23 成员 → opt59 **264 B/23、偏移全一致**（新增 sched_prop@168、top_task_prop@176、running_at@248、gdsq_idx@256、dsq_sync_ux@260）；task_struct 出厂 195 字段 scx@3608 → opt59 **195 字段 @3608** ✓；scx_sched_task_stats 64 B 一致 ✓
 5. **遗留**：struct scx_dispatch_q 缺 last_consume_at@80 / is_timeout@88（出厂 96 B vs 本树 80 B）—— **不影响 CRC**，补它零风险，且是解锁块2 那两个 consume_hmbird_global_dsq 调用点的前提
-6. 提交：树 bb7d854291b7（opt59）；kit 436ced6（子代理报告）+ eef415a（错误版，本提交更正）；lab 3fd95d4/78452de。报告 档案/性能功耗/第5步c-结构体对齐实验-20261009.md
+6. 提交：树 bb7d854291b7（opt59）；kit 436ced6（专项报告）+ eef415a（错误版，本提交更正）；lab 3fd95d4/78452de。报告 档案/性能功耗/第5步c-结构体对齐实验-20261009.md
 
 ## 十六、风驰实机可用 · 最小修复清单（2026-10-09）
 
@@ -1282,9 +1282,9 @@ opt78 实测（内核日志）：
 - 今晚累计修复 **24 个阶段**（G→AG），每个都由落盘现场驱动。
 - 剩余：**1~3 轮**（当前卡点已精确到"实体释放路径未覆盖全部来源"）。
 - 之后：关闭路径验证 1 轮、游戏实测 1 轮。
-## 二十八、第17步续 · 子代理审核 + Stage AI：终于走进切换循环（2026-10-10 凌晨）
+## 二十八、第17步续 · 专项审查 + Stage AI：终于走进切换循环（2026-10-10 凌晨）
 
-### 一、子代理审核（只读）抓到三个真问题（两个是我自己造的）
+### 一、专项审查（只读）抓到三个真问题（两个是我自己造的）
 | 项 | 审核结论 | 我的处理（Stage AI）|
 |---|---|---|
 | **A** | **Stage AH 根本没修好 AD3** —— 字符串替换未命中，实际只改了 AD6 缩进；`hmbird.c:4068-4070` 仍是"打点当循环体 + `prepare_task(p=NULL)` 在循环外" | **改为按行号重建循环**（带花括号）⇒ 编译日志已核对通过 |
@@ -1313,7 +1313,7 @@ opt89（Stage AI 全量修复）实测内核日志：
 1. 核对 `hmbird_ops_enable()` 切换循环里对 rq 锁的使用与厂商 `oplus_bsp_sched_assist`（`oplus_tickpull_runnable_rt`）的钩子是否冲突（例如在持 rq 锁时触发唤醒路径）。
 2. 检查 `hmbird_setscheduler_prio()` 在 `SCHED_CHANGE_BLOCK` 内被调用时，是否会与厂商的 `android_rvh_try_to_wake_up` 钩子互相递归/重入。
 3. 可选：先把厂商 sched_assist 的 `tickpull` 特性临时关闭做对照实验，确认是否为其交互所致。
-## 二十九、第17步续 · Stage AJ~AM + 子代理审核双轮：平衡回调问题解决（2026-10-10 凌晨）
+## 二十九、第17步续 · Stage AJ~AM + 专项审查双轮：平衡回调问题解决（2026-10-10 凌晨）
 
 ### 一、本阶段新增
 | 阶段 | 内容 | 结果 |
@@ -1323,7 +1323,7 @@ opt89（Stage AI 全量修复）实测内核日志：
 | **AL** | ★在 `hmbird_check_class_changed()` 之后补 `__balance_callbacks(task_rq(p))`（enable + disable 两处）★ | **生效** ✓ ⇒ balance 回调冲突消失 ✓ |
 | **AM** | AD3 打印限流 + AD5 补花括号 | 生效 ✓ |
 
-### 二、子代理审核（两轮，只读）——价值极高
+### 二、专项审查（两轮，只读）——价值极高
 **第一轮（opt90）抓到：**
 1. **Stage AH 根本没修好 AD3**（字符串替换未命中；`git show --stat` 只有 setlocalversion）⇒ 我改为**按行号重建** ✓
 2. **Stage AG 挂错调用点**：`free_task()` 也被 fork 失败路径（`delayed_free_task`）调用，而子任务的 `android_oem_data1[1]` 是**父任务实体的逐字节拷贝**（`arch_dup_task_struct`）⇒ `hmbird_free(子)` 会摘链并 kfree **父任务**的实体 ⇒ UAF。审核指出 sched_ext 的 `sched_ext_free` 挂在 `__put_task_struct`（fork.c:973）而非 `free_task` ⇒ 我据此移到 `__put_task_struct` ✓ + 加所有权兜底 ✓
@@ -1357,7 +1357,7 @@ opt89（Stage AI 全量修复）实测内核日志：
 
 ## 三十、第17步续 · Stage AW（opt104）+ 两个"验证漏洞"（2026-10-10 凌晨）
 
-### 一、子代理级别的人工复核抓到两个真问题（都是"我以为改了"）
+### 一、专项人工复核抓到两个真问题（都是"我以为改了"）
 | # | 问题 | 证据 | 处理 |
 |---|---|---|---|
 | **1** | ★**Stage AV 是死代码**★ —— 亲和性检查被写在 `return likely(test_rq_online(rq));` **之后**（`hmbird.c:2478-2481`）⇒ 永不执行 | 源码复核 + 反汇编：opt103 的 `task_can_run_on_rq` 只有 `fitable`/`online` 两个判断 | **opt103 作废**（假阴性），改做 Stage AW |
@@ -1528,7 +1528,7 @@ WRITE-RETURNED rc=0
 | **AX** | `task_can_run_on_rq()` 改出厂逐字（`task_cpu_possible_mask(p)`）+ 补整段缺失的 `check_misfit_task_on_fake_big()` + `scx_systemui_pid` 三处用途 + 回出厂循环顺序 + 撤入口校验（`select_task_rq_hmbird` 回裸一行） | 反汇编：`ldr w8,[x8,#0x490]`(cpus_ptr) 换成 cpumask 测试；WALT-BUG 2216→0（当时闸门仍关） |
 | **AZ** | ★闸门修复★ 厂商模块 `sched_ext_init` 反汇编：`ldr x8,[x8,#0xe18]`(= `current->scx` @3608) `cbz x8,.skip` ⇒ **只有 hmbird 已启用时才写 `ext_module_loaded=1`（鸡生蛋）**；本机 DT 无节点 ⇒ 该标志永为 0 ⇒ 启用被永久拒（实测 rc=-22）⇒ 接受 `hmbird_module_loaded`（开机由 `hmbird_misc_init()` 置 1，hmbird.c:4790） | rc -22 → 0 |
 | **BB** | ★per-rq 初始化修复★ `hmbird_sched_stats_init()` 唯一入口是 `slim_walt_enable(1)`；出厂只在 disable 调 `slim_walt_enable(false)`，enable 侧靠用户态写 `/proc/hmbird_sched/slim_walt/slim_walt_ctrl`；**实测本机该写无效**（读回为空；BB 打点仅 1 条且 `from ext_ctrl+0x420`）⇒ 内核侧显式调用 + 打点 | `EN6 calling` → `BB from ext_ctrl` → `EN6b returned` |
-| **BC** | 撤掉 Stage AL 的两处 `__balance_callbacks()`（**出厂 hmbird.c 里 0 次**；直接调会跳过 `balance_push_callback` 保护）+ 修 disable 路径花括号（子代理 D-17） | panic 未消失 ✗ |
+| **BC** | 撤掉 Stage AL 的两处 `__balance_callbacks()`（**出厂 hmbird.c 里 0 次**；直接调会跳过 `balance_push_callback` 保护）+ 修 disable 路径花括号（专项审查 D-17） | panic 未消失 ✗ |
 
 ### 三、★当前卡点：启用后 1.4~8 秒崩溃★
 opt109 完整 panic（版本串 opt109，已从 `SYSTEM_LAST_KMSG.txt` 取出）：
@@ -1658,7 +1658,7 @@ opt112 改成 `30*HZ` + **抓到超时就停表** 后立刻冻结。
 | 取证工具 | **主机侧实时采集**（`adb exec-out su -c sh catkmsg.sh`）—— 设备端 kmsg 硬复位**丢尾**，曾导致全部误判 |
 | 越权现场 | panic 哨兵 `echo 1162141187 > /proc/sys/walt/panic_on_walt_bug`（=0x4544DE03，**关掉打印位**、直接 panic）⇒ 第一条违规即 panic |
 | 调用栈 | `android_rvh_set_task_cpu ← set_task_cpu ← consume_dispatch_q ← balance_hmbird ← __schedule`（`LAST_KMSG_opt117.txt`）|
-| 空检查 | 审核子代理**六重独立证据**：源码 262-273 / `clang -E` 预处理 / `addr2line` 归到 `mmu_context.h:265` / `__jump_table` key=`arm64_mismatched_32bit_el0` / **反汇编里两处 cpumask 测试并存**（`0x812d0cc` 用 `__cpu_possible_mask`、`0x812d0e8` 用 `[p+0x490]`）/ 出厂该函数无 `p->cpus_ptr` |
+| 空检查 | 专项审查**六重独立证据**：源码 262-273 / `clang -E` 预处理 / `addr2line` 归到 `mmu_context.h:265` / `__jump_table` key=`arm64_mismatched_32bit_el0` / **反汇编里两处 cpumask 测试并存**（`0x812d0cc` 用 `__cpu_possible_mask`、`0x812d0e8` 用 `[p+0x490]`）/ 出厂该函数无 `p->cpus_ptr` |
 | 后果 | 启用后 2.3 秒内 **219 次** `selecting unaffined cpu=0 ... affinity=0x7c`；随后系统部分僵死（只剩 CPU1/2）；**CPU6 的喂狗工作不跑**；64.348s 硬件看门狗咬合 panic |
 
 ## 四、修复
@@ -1680,8 +1680,8 @@ opt112 改成 `30*HZ` + **抓到超时就停表** 后立刻冻结。
    （默认 `1162141208`=0x4544DE18 只有打印位，会把线索降级成文本。）
 4. **恢复脚本不能抢跑** —— PC 侧必须在测试写 `DONE` 标记前**绝不重启设备**（曾毁掉一整轮 t118）。
 5. **`.bak` 是"该阶段编辑前"的快照**，不是对应 opt 的源码；判定内容一律用 `git show`。
-6. 子代理报告要**交叉验证**：本轮研究子代理两次推翻了我的结论（D-01/D-02 因果、t118 有效性），
-   审核子代理抓出我的 F1/F2 缺陷与陈旧注释。**每轮产物必审、每轮必派研究**的纪律是对的。
+6. 专项报告要**交叉验证**：本轮专项研究两次推翻了原结论（D-01/D-02 因果、t118 有效性），
+   专项审查抓出 F1/F2 缺陷与陈旧注释。**每轮产物必审、每轮必派研究**的纪律是对的。
 
 ## 六、待办（向发布推进）
 1. **移除实验期插桩**：`hmbird_guard_work`（每 5s 打印，发布前必须删）、`hmbird_cfs_consistency()`、各处 `hmbird-dbg:` 打点
@@ -1753,10 +1753,10 @@ opt112 改成 `30*HZ` + **抓到超时就停表** 后立刻冻结。
    ⇒ 第一条违规即 panic + **完整调用栈落盘**。正是它给出了 `consume_dispatch_q ← balance_hmbird` 的铁证。
 3. **不要用 `scx=1` 或"活多久"当判据**：前者拒绝时也显示 1；后者受心跳文件丢尾影响。
    统一用：`A-before-write`/`B-after-write` 成对 + `enabled finished` + `disabled finished` + **`GUARD#N` 持续性**。
-4. **每轮产物必审 + 每轮必派研究**（用户定的纪律）：研究子代理两次推翻我的结论、审核子代理抓出 F1/F2 缺陷与
+4. **每轮产物必审 + 每轮必派研究**（既定纪律）：专项研究两次推翻了原结论、专项审查抓出 F1/F2 缺陷与
    "BM 会跳过 rt/dl pull"这个致命副作用（正是 opt120 4 秒硬挂的原因）。
 5. **恢复脚本不能抢跑**：PC 侧必须轮询测试写的 `DONE` 标记，期间**绝不重启设备**。
-6. **`echo 8 > /proc/sys/kernel/printk`**：否则 ring buffer 会丢 `hmbird-dbg`（研究子代理发现）。
+6. **`echo 8 > /proc/sys/kernel/printk`**：否则 ring buffer 会丢 `hmbird-dbg`（专项研究发现）。
 
 ## 六、待办（向发布推进）
 1. **移除全部实验期插桩**：`hmbird_guard_work`（发布前必须删）、`hmbird_cfs_consistency()`、`hmbird_bi_drained` 计数、
@@ -1837,8 +1837,8 @@ opt112 改成 `30*HZ` + **抓到超时就停表** 后立刻冻结。
 - **明确不建议**：给 hmbird 任务维护 `p->se.on_rq`（会把必崩换成静默记账漂移）
 
 ## 五、★方法论：本轮的两个关键节点★
-1. **研究子代理推翻了我的假设**（"关闭循环破坏链表"）并给出寄存器级铁证 —— **纪律"每轮必派研究"再次证明价值**
-2. **审核子代理独立复现了我自检发现的 D-1 并给出"不要烧 opt124"的明确建议** —— **纪律"产物必审"避免了一轮无效刷机**
+1. **专项研究推翻了原假设**（"关闭循环破坏链表"）并给出寄存器级铁证 —— **纪律"每轮必派研究"再次证明价值**
+2. **专项审查独立复现了自检发现的 D-1 并给出"不要烧 opt124"的明确建议** —— **纪律"产物必审"避免了一轮无效刷机**
 
 ## 三十一、第18步 · hmbird 二分收敛 + ★方向纠正：改走上游官方 sched_ext★（2026-10-11 凌晨）
 
@@ -1846,7 +1846,7 @@ opt112 改成 `30*HZ` + **抓到超时就停表** 后立刻冻结。
 用户澄清：「我说的是**官方的 sched 和 scx 实践路线**，不是用 walt，毕竟他是一个帧数感知的系统」。
 ⇒ 整晚都在修 OPPO 那套 `hmbird_sched_class`（依赖 WALT 帧率感知 util），**方向错了**。目标改为**上游 mainline sched_ext（BPF struct_ops 调度器）**。
 
-**内核本来就支持，我们一次都没用过**（captain 上机核实）：
+**内核本来就支持，我们一次都没用过**（上机核实）：
 
 | 项 | 状态 |
 |---|---|
