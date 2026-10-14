@@ -2285,7 +2285,7 @@ r2 已全部闭环（F0/F2/F3/F-gov/F5/F6/F7/F9/F11/F12），未处置留待裁�
   另：结论「`/proc/sys/oplus_sched_ext/cpus_*` 是可读的 D13 掩码路径」**已被设备实测证伪**（该目录不存在），
   替换为「本机读不到；唯一未采样候选 `/proc/sys/walt/`」。
 
-### 六、★本轮新增踩坑（4 条）★
+### 六、★本轮新增踩坑（3 条）★
 
 1. ★**先停守护，再启用 hmbird**★：守护在无游戏 idle 态会**主动把 hmbird 关掉**（守护日志实测
    `hmbird -> 0 (was 1) rc=0 意图读回=[0] 真状态(dmesg)=[0 0]`）。且守护 watchdog 会**自愈重启**，
@@ -2294,8 +2294,6 @@ r2 已全部闭环（F0/F2/F3/F-gov/F5/F6/F7/F9/F11/F12），未处置留待裁�
 2. ★**toybox `taskset` 不支持 `-c`**★（`taskset: Unknown option 'c'`），要用 hex mask：`taskset e0`（bit5/6/7）。
 3. ★**PowerShell 内联 `adb shell` 含 `$()` / 双引号会被本机原生参数转义破坏**★（代号 BUG-13，本轮复现两次）
    ⇒ 一律「本地写 LF 脚本 → `adb push` → `su -c 'sh ...'`」。
-4. ★**成员报的交付物路径可能带前导下划线**★（本轮两次：`_缺陷-…` / `_排查-…` / `_复核-p3v2…`）
-   ⇒ D11 必须按**模式**搜目录，不能只按任务书写的字面路径 glob。
 
 ### 七、四仓状态
 
@@ -2304,7 +2302,7 @@ r2 已全部闭环（F0/F2/F3/F-gov/F5/F6/F7/F9/F11/F12），未处置留待裁�
 | kernel-kit | 本 CHANGELOG 新章（三十四）；`工作流.md` 已更新（待跑脚本改 p3v2、守护版本订正 v2.7、§10 待办与分工） |
 | lab（gt5pro-kernel-lab） | 新增 `2026-10-14/` 阶段目录（判决实验现场 + 探针脚本 + 结论） |
 | gt5pro-hmbird | `docs/changelog.md` 新章；新增核心簇判决记录；★`hmbird-内核态调度类-进展.md` 的「已可用」结论需补「核心簇被排除」这一限定★ |
-| gt5pro-kernel-src | **仍未推送**，等机主在 A/B/C/D 四方案里选一个（见 §三十三 与《待决-kernel-src快照更新与法务边界.md》） |
+| gt5pro-kernel-src | **本轮未推送**，A/B/C/D 待选（见 §三十三 与《待决-kernel-src快照更新与法务边界.md》）<br>★**同日由 §三十五 结清**：选定方案 A 并推送完成，`main` = `3421d4343592`★ |
 
 ### 八、未验证 / 待办
 
@@ -2318,5 +2316,91 @@ r2 已全部闭环（F0/F2/F3/F-gov/F5/F6/F7/F9/F11/F12），未处置留待裁�
 4. 要动内核改 hmbird 需 **WSL 恢复**（增量编译 94 s + 四道 CRC 门禁 + 刷 `boot_a`，约 7 分钟/轮）；
    本轮 WSL 因 `HCS_E_HYPERV_NOT_INSTALLED` 不可用。
 5. 写放大补丁的 F1 未修（会误放行 scx）；F4/F8/F10（p3v2）未裁定。
-6. ★D14 标注★：判决实验期间前台为 `com.deepseek.chat`（机主在用手机）。各臂对照在同污染条件下取得，
-   且 A0 复现与 P0/P1 绑核对照均为同 run 内前后对照 ⇒ **方向可信**；绝对数值（cpu2–4 的零散占比）可能被用户负载抬高，不作结论依据。
+6. ★D14 标注★：判决实验期间前台为 `com.deepseek.chat`（设备当时有人在用）。各臂对照在同污染条件下取得，
+   且 A0 复现与 P0/P1 绑核对照均为同 run 内前后对照 ⇒ **方向可信**；绝对数值（cpu2–4 的零散占比）可能被额外负载抬高，不作结论依据。
+
+
+## 三十五、2026-10-14 归档：★kernel-src 方案 A 推送完成 —— main 跟进到 opt162（减法快照）★
+
+在 A/B/C/D 四方案中选定 **A（减法快照）**并执行完毕。
+
+### 一、结论
+
+| 项 | 值 |
+|---|---|
+| 仓库 | `ltcdz5/gt5pro-kernel-src` |
+| 分支 | `main` |
+| 新 HEAD | `3421d434359288b36bd289057e2dbbad1de192b3` |
+| 提交信息 | `src: bring the tree up to opt162 (minus the hmbird/slim units we do not ship)` |
+| 上一 HEAD | `77e4a9e2857a`（方案 C 那轮：STATUS.md + PROJECT.md） |
+| 改动规模 | 19 文件 / +718 −803 |
+| `history` 分支 | `6f3c94da465d`（未动） |
+
+### 二、为什么选 A 而不是 B/C/D
+
+1. **`main` 与 opt162 的差距极小**：blob 级比对 79,510 个公共路径里**只有 19 个文件内容不同**（99.98% 相同）。
+2. **方案 A 的脚手架在 `main` 上已经存在**（`opt61` 那轮就公开了接入层，随后 `7a322587506b` 做减法）：`ext.c` 已用 `extern int partial_enable;` 替代 `#include "slim.h"`、`build_policy.c` 无 slim 块、`Makefile` 只剩 `obj-y += hmbird_export.o`、`gki_defconfig` 已是 `# CONFIG_HMBIRD_SCHED is not set`。
+3. **方案 C 已落地**（`35103c049367` / `77e4a9e2857a`），继续停在 C 等于让仓库停在 opt47 口径。
+4. **方案 B（全量快照）**要推翻 2026-10-09「不发 slim」的政策并重估再分发风险，**不采纳**。
+5. ★**方案 A 不需要补任何桩符号**★：保留树真正需要的符号（`partial_enable` / `slim_for_app` / `hmbirdcore_debug` / `__scx_ops_enabled` / `iso_masks` / `tracing_mark_write`）**全部由 `kernel/sched/hmbird_export.c` 自己定义并导出**，而该文件是 `obj-y` 无条件编译的。文档原先预估的「需补 iso_masks 等定义」是**错的**。
+
+### 三、推送内容
+
+- **17 个文件**从 dev 树（`/home/builder/kwork/wt-core`，HEAD `7cc87ec0d8dc` = opt162）逐字同步：`README.md`（★见下「回归」★）、`drivers/cpufreq/cpufreq.c`、`include/asm-generic/vmlinux.lds.h`、`include/linux/cpufreq.h`、`include/linux/sched.h`、`include/uapi/linux/sched.h`、`kernel/Kconfig.preempt`、`kernel/bpf/bpf_struct_ops_types.h`、`kernel/fork.c`、`kernel/sched/Makefile`、`kernel/sched/build_policy.c`、`kernel/sched/core.c`、`kernel/sched/ext.c`、`kernel/sched/ext.h`、`kernel/sched/fair.c`、`kernel/sched/hmbird_export.c`、`kernel/sched/sched.h`、`scripts/setlocalversion`。
+- `arch/arm64/configs/gki_defconfig` **刻意不同步**（保留 main 的 `# CONFIG_HMBIRD_SCHED is not set`）。
+- `ext.c` 特判：把 `#include "slim.h"` 换成它真正需要的两行 `extern int partial_enable;` / `extern atomic_t __scx_ops_enabled;`。
+
+### 四、★同步时被带进来的 6 处回归，全部已修★
+
+| # | 回归 | 修法 |
+|---|---|---|
+| 1 | `README.md` 被 AOSP 的 `README.android-common-kernel.md` 覆盖 | `git checkout -- README.md`，恢复项目 README |
+| 2 | `Kconfig.preempt` 丢掉「家族单元不在本仓库」的诚实告警 | 恢复该行，措辞改为 `provenance not confirmed` |
+| 3 | `HMBIRD_SCHED_CORE` 帮助文本仍说「本仓库不受影响」 | 改写为「家族文件未提供，本选项**不可启用**，保留只为让 `#ifdef` 有意义」 |
+| 4 | `ext.h` 两处注释被改成「家族文件存在」的现在时 | 改回 main 的「both since removed」口径 |
+| 5 | `hmbird_export.c` 注释同样被改回现在时 | 改回 `used to reach them via slim.h` |
+| 6 | `build_policy.c` 被重新加回 `# include "slim_sysctl.c"` / `# include "hmbird_sched_proc_main.c"` 整块 | 换成说明注释；`CONFIG_HMBIRD_SCHED` 在本仓库不再编任何东西 |
+
+### 五、验证
+
+| 验证 | 结果 |
+|---|---|
+| 构建（`pub-a`，`O=/home/builder/kwork/out-pub`，gki_defconfig + `Image`） | **rc=0**，产出 `Image` 38,746,624 B；out-pub 里 hmbird 相关目标文件**只有** `hmbird_export.o` |
+| `tools/gate_new_exports.py` | `gone=0` / `shadowing=0` |
+| 导出集与已发布 opt162 构建的差异 | ★**唯一差异 = `hmbird_transitioning` 消失**★；489 个厂商 `.ko` 全扫，**无一导入该符号** ⇒ 不构成砖 |
+| 厂商 `.ko` 对 hmbird 符号的真实依赖 | `oplus_bsp_sched_ext.ko` 导入 10 个：`__scx_ops_enabled` `hmbird_dir` `iso_masks` `scx_get_md_info` `task_is_scx` `get_hmbird_cpu_exclusive` `register_hmbird_sched_ops` + 3 个 `__tracepoint_android_vh_hmbird_*`；★`get_hmbird_cpu_exclusive` / `register_hmbird_sched_ops` 全树从未定义★（厂商 `.ko` 在本机本就加载不了该分支） |
+| 远端核对 | `git ls-remote kit` ⇒ `main` = `3421d4343592`；`gh api .../contents/kernel/sched/hmbird?ref=main` ⇒ **404**（家族目录确实不在）；`.../kernel/sched` 里 hmbird/slim 相关只剩 `hmbird_export.c` |
+
+### 六、★缺什么、怎么取（已写进远端 `STATUS.md`）★
+
+缺 **30 个文件**，分两类：
+
+**甲类 19 个 —— 来自上游补丁**：`kernel/sched/hmbird/` 中除 `Makefile`/`hmbird_all.c` 外的 11 个 + `kernel/sched/hmbird.h` + `include/linux/sched/` 下 `hmbird.h`/`hmbird_proc_val.h`/`hmbird_version.h`/`sa_common.h`/`sa_common_struct.h`/`sa_oemdata.h`/`sched_ext.h`。
+
+**乙类 11 个 —— 本仓库自有移植件，上游补丁里没有**：`kernel/sched/slim.h`、`slim_sysctl.c`、`hmbird_sched_proc_main.c`、`hmbird_sched_proc.h`、`kernel/sched/hmbird/Makefile`、`hmbird_all.c`、`kernel/oplus_cpu/sched_ext/`（4 文件）、`.gitignore`。
+
+> ⚠️ **乙类不是可选项**：`hmbird.c:17` / `hmbird_misc.c:14` / `hmbird_sched_proc.c:15` 直接 `#include "slim.h"` 并引用 20 个 `slim_*` 符号，定义在 `kernel/sched/slim_sysctl.c`。只补甲类**无法构建**。这正是甲、乙两类一并排除的原因（同进同退）。
+
+**上游来源**（已溯源确认，`opt61` 引入提交 `2a08b68fc280`）：
+
+| 项 | 值 |
+|---|---|
+| 仓库 | `WildKernels/kernel_patches` |
+| 文件 | `oneplus/hmbird/fengchi_OP-PAD-3-SM8750_A15.patch` |
+| 大小 | 255,895 字节 |
+| 本仓库所用版本的 git blob SHA-1 | `dcf80f96f244e3c4ce4a9e84035ef6b1b6a503b9` |
+| 直接下载 | <https://raw.githubusercontent.com/WildKernels/kernel_patches/main/oneplus/hmbird/fengchi_OP-PAD-3-SM8750_A15.patch> |
+| 文件头许可 | `SPDX-License-Identifier: GPL-2.0` / `GPL-2.0-only`，版权行 `Copyright (C) 2024 Oplus.` |
+
+> 上游补丁另外还改了 17 个已有文件（`core.c`、`sched.h`、`fork.c`、`build_policy.c`、`gki_defconfig`、`vmlinux.lds.h`、`include/linux/sched.h`、`include/uapi/linux/sched.h`、`Kconfig.preempt` 等），**这些改动已在本仓库里**（就在 `opt61`→`opt162` 的增量中），不需要再打一遍。
+
+### 七、口径订正：从「许可不明」改为「来源可追溯性未确认」
+
+四份被删文件头部**都带** `SPDX-License-Identifier: GPL-2.0`（三份还带 `Copyright (C) 2024 Oplus`）⇒ 「许可不明」的旧措辞**不准确**。`NOTICE.md` / `STATUS.md` / `PROJECT.md` 已统一改为「**来源可追溯性**未确认」，这才是真正的保留理由。
+
+### 八、本轮新增踩坑
+
+1. ★**WSL 里跑长任务不能用 `nohup ... &`**★：nohup 进程会随 WSL 会话结束而死（`/tmp/build-planA.log` **从未创建**）。必须把 bash 作为 pwsh 后台 job 的**前台命令**跑。
+2. ★**新 worktree 不会自动初始化 submodule**★：`pub-a/Baseband-guard/` 是空目录（git 记为 gitlink `a5b57f15d6b5`），导致 `security/Kconfig:295` 找不到 `security/baseband-guard/Kconfig` 而 `olddefconfig` 失败。离线修复 = 从 `wt-core` `cp -a` 过来。
+3. ★**`git worktree add -b X <path> main` 在本地已有 `main` 时，实际创建的可能是 `main` 而非 X**★；且 `opt162` 这个名字**已被 dev 分支本体占用**（`7cc87ec0d8dc`，与 main **无共同祖先**、ahead 161、含 `kernel/sched/hmbird/`）⇒ **绝不可推**。
+4. ★**`pub-a` 与 `wt-core` 共用同一个 `.git`**★（`git rev-parse --git-common-dir` 两者都指向 `cctv18/repo/local/kernel_workspace/common/.git`）⇒ 在 pub-a 上的分支操作会影响同一个对象库。
