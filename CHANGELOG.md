@@ -2416,7 +2416,7 @@ r2 已全部闭环（F0/F2/F3/F-gov/F5/F6/F7/F9/F11/F12），未处置留待裁�
 ### 一、结论
 
 ★「内核态 hmbird 调度类 / 风驰游戏调度」方向**自 2026-10-17 起暂缓**。放弃原因（机主口径）：**工程量大、难度高**。★
-三条叠在一起：① 要让调度真变好得同时复现**五段链**（内核 `sched_class` + 5 个厂商 `.ko` + 3 个用户态服务 + 参数库 + 云控注入），少一段数据就是假的；② 核心症结（hmbird 在线时 cpu5/6/7 连 `taskset` 都跑不动）**未能定位到机制**，三个用户态开关全无效，而「内核里摘掉 `sched_class`」这条退路又被 ABI 堵死；③ 效应量 ≤1~2%，本机噪声带 I/O 20% / 功率 CV 41% ⇒ **改对了也测不出来**。
+三条叠在一起：① 要让调度真变好得同时复现**五段链**（内核 `sched_class` + 5 个厂商 `.ko` + 3 个用户态服务 + 参数库 + 云控注入），少一段数据就是假的；② 核心症结（hmbird 在线时 cpu5/6/7 连 `taskset` 都跑不动）**未能定位到机制**，三个用户态开关全无效，也**没有下一个可验证的假设** —— ★注：内核级摘除（`CONFIG_HMBIRD_SCHED_CORE=n`）这条退路本身是**通的**（见 §三 更正后：相对现役只少 1 个无人引用的导出，四道门禁全过、拒载 = 0），只是工程量与收益不匹配，不作为本轮出口★；③ 效应量 ≤1~2%，本机噪声带 I/O 20% / 功率 CV 41% ⇒ **改对了也测不出来**。
 
 ### 二、本轮做完的（都有实测出处）
 
@@ -2425,44 +2425,70 @@ r2 已全部闭环（F0/F2/F3/F-gov/F5/F6/F7/F9/F11/F12），未处置留待裁�
 3. **真实对局客观判据**（链路全活下，Scene 导 CSV）：★平均 FPS **46.53 不过**（阈值 55）★；JANK 0.332 / cpu5-6 占比 20.7% / cpu7 7.0% / 长帧 0 四项过。频率侧 `f234` 实测 **1631 MHz**（正常 2939~2961），`scaling_max_freq` 被压约 **19%**（2572800 / 2380800）。
 4. **2026-10-14 的 P0 判决未翻案**：`partial_ctrl` / `isolate_ctrl` / `iso_free_rescue` 仍写不住或无效。
 
-### 三、★ABI 实测：`CONFIG_HMBIRD_SCHED_CORE=n` 禁用★
+### 三、★内核级摘除 `CONFIG_HMBIRD_SCHED_CORE=n` 的真实 ABI 影响：只少 1 个无人引用的导出★
 
-本想用它把 hmbird `sched_class` 整个摘掉。**实测会破坏导出 ABI。**
+> ★**本条当日更正过。** 初版把 3 个符号的 CRC 差异判成"CORE=n 破坏 ABI、禁用"，
+> 那个判断是**错的** —— 真因是出片时**漏跑了 CRC 定点覆写**（见 §四 第 1 条）。更正后见下。★
+
+本想用它把 hmbird `sched_class` 整个摘掉。**走完出片链路后：这条路是通的。**
 
 基准（★判据必须用**上机版按版快照**，不是当前构建目录★）：`gate168/vmlinux.symvers`
 （2026-10-15 20:06 产物，版本串 `v1.1-opt168`，与器件 `uname -a` 的 `#75-ack304-v1.1-opt168` Thu Oct 15 20:04:30 **同源**）。
 
 ```
-gate168（CORE=y，上机正常）   导出 15490
-out-clean（CORE=n）           导出 15489
+gate168（CORE=y，上机正常）              导出 15490
+out-clean（CORE=n，已跑 CRC 定点覆写）   导出 15489
 
-★ CRC 改变 ★
-    iso_masks            0xcb6a4c44 → 0x9998675b
-    sk_filter_trim_cap   0xf5845708 → 0x43b2b8f0
-    task_is_scx          0xb3071c68 → 0x61658a4e
-★ 消失 ★
-    hmbird_transitioning 0x47330ca1   （定义 kernel/sched/hmbird/hmbird.c:95-96）
+★CRC 不同 : 0 个★
+★新增     : 0 个★
+★消失     : 1 个 → hmbird_transitioning (0x47330ca1)★
+    （定义 kernel/sched/hmbird/hmbird.c:95-96，随 CORE 门控的文件一起不编译）
 ```
 
-后果 —— `gate_vko_crc.py`：
+后果（走完出片链路四道门禁后）：
 
-| 候选 | 会拒绝装载的模块 |
+| 闸门 | 结果 |
 |---|---|
-| `gate168/vmlinux.symvers`（CORE=y） | **0** |
-| `out-clean/vmlinux.symvers`（CORE=n） | **2** —— `system_dlkm/bluetooth.ko`（`sk_filter_trim_cap`）、`vendor_dlkm/oplus_bsp_sched_ext.ko`（`iso_masks` / `task_is_scx`） |
+| `gate_vko_crc.py`（`gate168` 基准） | **拒载 = 0** |
+| `gate_vko_crc.py`（opt172 CORE=n，已覆写） | ★**拒载 = 0**★ |
+| `gate_all_modules.py`（493 个厂商 `.ko`） | ★**PASS：缺失 0 / CRC 不符 0**★ |
 
-报的是 `disagrees about version of symbol`（**不是** `Unknown symbol`）。属《发布规范》§七 第 10 条的砖机制（三次砖的同类）。
+★⇒ CORE=n 的真实 ABI 影响只有一处：`hmbird_transitioning` 这个导出消失。
+全量模块审计显示**缺失 = 0** ⇒ **没有任何厂商 `.ko` 引用它**，不构成拒载风险。★
 
-**机制**：全树只有 **2 个**头文件被 `CONFIG_HMBIRD_SCHED_CORE` 门控（`grep -rl --include=*.h`）——
+★**初版错在哪（留作反面教材）**★：`iso_masks` / `task_is_scx` / `sk_filter_trim_cap` 三个 CRC 是
+**本树 genksyms 的自然值**（`0x9998675b` / `0x61658a4e` / `0x43b2b8f0`），
+**CORE=y 与 CORE=n 算出来完全一样**；`opt168` 上的"好值"（`0xcb6a4c44` / `0xb3071c68` / `0xf5845708`）
+是出片链路里 `tools/patch_crc_targeted.py` **定点覆写**写进去的。
+初版出片时只编了内核、直接拿裸 `Image` 去重打包 ⇒ 闸门2 报两个模块拒载
+（`system_dlkm/bluetooth.ko` 的 `sk_filter_trim_cap`、`vendor_dlkm/oplus_bsp_sched_ext.ko` 的
+`iso_masks` / `task_is_scx`，报 `disagrees about version of symbol`）——
+★而这组坏读数与"CORE 改坏了 CRC"的指纹**完全一样**，所以极易误判。★
+
+**机制（仍然有效的那部分）**：全树只有 **2 个**头文件被 `CONFIG_HMBIRD_SCHED_CORE` 门控（`grep -rl --include=*.h`）——
 `include/linux/sched.h:2489-2578`（`#include <linux/sched/hmbird.h>` + task 侧 helper 块）与
 `kernel/sched/sched.h:3409-3411`（`#include "hmbird.h"`，`struct hmbird_rq` 在 `kernel/sched/hmbird.h:198-219`）。
-CORE=n 时 genksyms 可见类型集改变 ⇒ 导出符号 CRC 随之改变。
-★（精确到 genksyms 内部哪条路径把 `iso_masks` / `sk_filter_trim_cap` 带上的，**没有追到** —— 只记实测事实与已定位的门控点。）★
+★实测这两处确实改变了 genksyms 的可见类型集，但**没有**改变任何导出的 CRC★ ——
+`struct scx_iso_masks` 在两种配置下都算出 `0x9998675b`；厂出的 `0xcb6a4c44` 无法从公开源复现
+（改成员类型 / 加 `__read_mostly` / `__aligned` / `const` / 数组 / 前置换 TU 上下文均不变）
+⇒ 这正是它必须"定点覆写"的原因。
 
-### 四、★顺带查出的两个坑（后来人必看）★
+**本轮产出件**（全部含覆写、且已跑完四道门禁）：
 
-1. ★**`out-core` 是脏构建目录**★：`out-core/Module.symvers`(10-15 15:35) = **好值** `0xcb6a4c44`，而 `out-core/vmlinux.symvers`(10-16 13:00) = **坏值** `0x9998675b` —— **同目录两个 symvers 互相矛盾** ⇒ 混了 CORE=y / CORE=n 两批 `.o`。**`opt169/170/171` 都建在它上面，产物不可信。** 基线一律用 `gateNNN/vmlinux.symvers` 这类**按版快照**。
-2. ★**config 只差一行**★：从 `gate168/Image.crc` 抽 IKCONFIG 与 CORE=n 的 `.config` 逐行 diff，**只差 2 行**（`CONFIG_HMBIRD_SCHED_CORE=y` vs `# ... is not set`）⇒ 不是别的 config 变化导致的。
+| 件 | md5 | 说明 |
+|---|---|---|
+| `Image.opt172-clean` | `60a2f43c6fddaf415511ff307b17058b` | 裸核，**未覆写**（只作留档与对照）|
+| `Image.opt172.crc` | `567bbb3314cb35256cf712eba2db7b93` | 裸核，**已覆写**（38,746,624 B）|
+| `boot-v1.1-opt172-repacked.img` | `4fdfd6bdc8d65e99d6d997893c118162` | 刷机件，由**已覆写**的裸核重打包 |
+
+★两份裸核件**只差 12 字节**（3 个 CRC 槽位）；出片一律用 `.crc` 那份。★
+
+
+### 四、★顺带查出的三个坑（后来人必看）★
+
+1. ★**漏跑 CRC 定点覆写会伪装成"ABI 被破坏"**★：症状与"CORE 改坏了 CRC"**完全一样**（3 个符号 CRC 对不上、两个模块拒载、`构建 rc=0` 且无任何报错）。**判据**：看 `vmlinux.symvers` 里 `iso_masks` / `task_is_scx` / `sk_filter_trim_cap` 是不是**厂商期望值**（`0xcb6a4c44` / `0xb3071c68` / `0xf5845708`）；是自然值（`0x9998675b` / `0x61658a4e` / `0x43b2b8f0`）就是漏跑了覆写。
+2. ★**`out-core` 是脏构建目录**★：`out-core/Module.symvers`(10-15 15:35) 与 `out-core/vmlinux.symvers`(10-16 13:00) 对同一符号给出**不同值** —— **同目录两个 symvers 互相矛盾** ⇒ 混了 CORE=y / CORE=n 两批 `.o`。**`opt169/170/171` 都建在它上面，产物不可信。** 基线一律用 `gateNNN/vmlinux.symvers` 这类**按版快照**。
+3. ★**config 只差一行**★：从 `gate168/Image.crc` 抽 IKCONFIG 与 CORE=n 的 `.config` 逐行 diff，**只差 2 行**（`CONFIG_HMBIRD_SCHED_CORE=y` vs `# ... is not set`）⇒ 不是别的 config 变化导致的。
 
 ### 五、可复用架构事实
 
@@ -2489,6 +2515,8 @@ CORE=n 时 genksyms 可见类型集改变 ⇒ 导出符号 CRC 随之改变。
 
 ### 八、本轮新增踩坑
 
-1. ★**PowerShell 传 `$VAR` 给 `wsl -- bash -lc '...'` 会被吃掉**★：命令里写成 `K=/path; ... $K/...`，到 bash 时 `$K` 已为空 ⇒ 报 `cannot open '/verify_image.sh'`。**判据**：输出里出现裸 `/xxx` 而不是完整路径。**解法**：把脚本写成 `.sh` 文件再 `wsl -- bash <file>`，不在 `-lc` 字符串里用 shell 变量。
-2. ★**`verify_image.sh` 在 git 里就是截断的**★：第 45 行 `if [ -n "$SUF" ] && printf '%s' "$SUF" | grep -qE 'opt[0-9]+` 之后整块缺失（`0e1f5b2` 起、`5e39cc5` 仍在），bash 报 `unexpected EOF while looking for matching \`'\`` 且**报在文件末行**（第 167 行），看着像末行的问题。本仓只有这一份副本，无未截断原件可还原。另该文件把编译器判据写死成 `clang version 17.0.2`，而 `opt16x` 全系实测是 `Ubuntu clang 18.1.3`（`out-pub`/`out-core`/`out-clean` 三套 `.config` 的 `CONFIG_CC_VERSION_TEXT` 一致，且 `opt168` 已上机正常）⇒ 每个 `opt16x` 件都会无条件 FAIL。
-3. ★**`git ls-remote` 之后 `git fetch --depth=1 --filter=blob:none origin refs/tags/<tag>` 可在不下载 blob 的前提下拿到整棵树的文件清单**★ —— 用来判「一个表示"源码已闭"的外部仓，旧 tag 里还有没有源码」很省流量（本次实测：某仓当前分支只有 2 个 README，但旧 tag 的树完整可读）。
+1. ★★**出片漏跑 CRC 定点覆写 —— 症状与"ABI 真被破坏"完全一样**★★：只编内核、拿裸 `Image` 去重打包，`gate_vko_crc.py` 会报 2 个模块拒载（`bluetooth.ko` / `oplus_bsp_sched_ext.ko`），3 个符号 CRC 对不上，而**构建 `rc=0`、无任何报错**。本轮据此误判成"CORE=n 破坏 ABI"。**判据**：查 `vmlinux.symvers` 里那三个符号是不是厂商期望值。**纪律**：出片一律走完四道门禁，用 `Image.crc` 不用 `Image.pre`。
+2. ★**PowerShell 传 `$VAR` 给 `wsl -- bash -lc '...'` 会被吃掉**★：命令里写成 `K=/path; ... $K/...`，到 bash 时 `$K` 已为空 ⇒ 报 `cannot open '/verify_image.sh'`。**判据**：输出里出现裸 `/xxx` 而不是完整路径。**解法**：把脚本写成 `.sh` 文件再 `wsl -- bash <file>`，不在 `-lc` 字符串里用 shell 变量。
+3. ★**`verify_image.sh` 在 git 里就是截断的**★：第 45 行 `if [ -n "$SUF" ] && printf '%s' "$SUF" | grep -qE 'opt[0-9]+` 之后整块缺失（`0e1f5b2` 起、`5e39cc5` 仍在），bash 报 `unexpected EOF while looking for matching \`'\`` 且**报在文件末行**（第 167 行），看着像末行的问题。本仓只有这一份副本，无未截断原件可还原。另该文件把编译器判据写死成 `clang version 17.0.2`，而 `opt16x` 全系实测是 `Ubuntu clang 18.1.3`（`out-pub`/`out-core`/`out-clean` 三套 `.config` 的 `CONFIG_CC_VERSION_TEXT` 一致，且 `opt168` 已上机正常）⇒ 每个 `opt16x` 件都会无条件 FAIL。
+4. ★**`git ls-remote` 之后 `git fetch --depth=1 --filter=blob:none origin refs/tags/<tag>` 可在不下载 blob 的前提下拿到整棵树的文件清单**★ —— 用来判「一个表示"源码已闭"的外部仓，旧 tag 里还有没有源码」很省流量（本次实测：某仓当前分支只有 2 个 README，但旧 tag 的树完整可读）。
+5. ★**一个被推翻的结论要当场更正、并把"原来错在哪"一起写下来**★：本轮 §三 的初版（"CORE=n 破坏 ABI、禁用"）已推送到公开仓后才自查出来。只改数字不改叙述，后来人会照着旧结论继续误判 —— 所以更正条目要保留"错读数 vs 对读数"的对照。
