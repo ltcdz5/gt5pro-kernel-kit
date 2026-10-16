@@ -2404,3 +2404,91 @@ r2 已全部闭环（F0/F2/F3/F-gov/F5/F6/F7/F9/F11/F12），未处置留待裁�
 2. ★**新 worktree 不会自动初始化 submodule**★：`pub-a/Baseband-guard/` 是空目录（git 记为 gitlink `a5b57f15d6b5`），导致 `security/Kconfig:295` 找不到 `security/baseband-guard/Kconfig` 而 `olddefconfig` 失败。离线修复 = 从 `wt-core` `cp -a` 过来。
 3. ★**`git worktree add -b X <path> main` 在本地已有 `main` 时，实际创建的可能是 `main` 而非 X**★；且 `opt162` 这个名字**已被 dev 分支本体占用**（`7cc87ec0d8dc`，与 main **无共同祖先**、ahead 161、含 `kernel/sched/hmbird/`）⇒ **绝不可推**。
 4. ★**`pub-a` 与 `wt-core` 共用同一个 `.git`**★（`git rev-parse --git-common-dir` 两者都指向 `cctv18/repo/local/kernel_workspace/common/.git`）⇒ 在 pub-a 上的分支操作会影响同一个对象库。
+
+---
+
+## 三十六、2026-10-17 归档：★hmbird / 风驰游戏调度方向收尾轮 + 该方向暂缓（工程量大、难度高）★
+
+> 对外说明与完整记录在 **公开仓 `gt5pro-hmbird`**：
+> `docs/opt163-opt172-收尾结论与暂缓-20261017.md` 与 `docs/changelog.md` 2026-10-17 条目。
+> 设备侧原始证据在 **私有仓 `gt5pro-kernel-lab/2026-10-17/`**（阶段 J）。本章只记台账口径。
+
+### 一、结论
+
+★「内核态 hmbird 调度类 / 风驰游戏调度」方向**自 2026-10-17 起暂缓**。放弃原因（机主口径）：**工程量大、难度高**。★
+三条叠在一起：① 要让调度真变好得同时复现**五段链**（内核 `sched_class` + 5 个厂商 `.ko` + 3 个用户态服务 + 参数库 + 云控注入），少一段数据就是假的；② 核心症结（hmbird 在线时 cpu5/6/7 连 `taskset` 都跑不动）**未能定位到机制**，三个用户态开关全无效，而「内核里摘掉 `sched_class`」这条退路又被 ABI 堵死；③ 效应量 ≤1~2%，本机噪声带 I/O 20% / 功率 CV 41% ⇒ **改对了也测不出来**。
+
+### 二、本轮做完的（都有实测出处）
+
+1. **修好厂商「官方桥」**（此前是断的）。`game_pid` 恒 `-1` —— 内核**无任何自动路径**写它，只能用户态写；它不活 ⇒ `cpu_load` 走早退分支恒 `90/60`（反汇编 `.text 0x3c8-0x3d0`）、`critical_task_name` 节点不存在、`heavy_task_info` 全空。按厂商 `service.sh` 恢复 `ctn_patch` + `opgs_daemon` 后**四项同时变活**（`dev500` 采样：`game_pid=27929`、`critical_task_name=[UnityMain UnityGfxDevice]`、`cpu_load` 真值、`heavy_task` 出现 `Thread-30`）。
+2. **官方给第五人格的规则实读**：`es4g.clist="4,7,2,3"`、`pipeline{4:__render__, 7:Thread-}`、`fixed_critical_task=["n___render__","n_Thread-"]`、`dpcpus/sfcpus="0-1 5-6"` ⇒ 与社区 LOVE 的 `com.netease.dwrg{Thread-*}=7` **逐字一致**。
+3. **真实对局客观判据**（链路全活下，Scene 导 CSV）：★平均 FPS **46.53 不过**（阈值 55）★；JANK 0.332 / cpu5-6 占比 20.7% / cpu7 7.0% / 长帧 0 四项过。频率侧 `f234` 实测 **1631 MHz**（正常 2939~2961），`scaling_max_freq` 被压约 **19%**（2572800 / 2380800）。
+4. **2026-10-14 的 P0 判决未翻案**：`partial_ctrl` / `isolate_ctrl` / `iso_free_rescue` 仍写不住或无效。
+
+### 三、★ABI 实测：`CONFIG_HMBIRD_SCHED_CORE=n` 禁用★
+
+本想用它把 hmbird `sched_class` 整个摘掉。**实测会破坏导出 ABI。**
+
+基准（★判据必须用**上机版按版快照**，不是当前构建目录★）：`gate168/vmlinux.symvers`
+（2026-10-15 20:06 产物，版本串 `v1.1-opt168`，与器件 `uname -a` 的 `#75-ack304-v1.1-opt168` Thu Oct 15 20:04:30 **同源**）。
+
+```
+gate168（CORE=y，上机正常）   导出 15490
+out-clean（CORE=n）           导出 15489
+
+★ CRC 改变 ★
+    iso_masks            0xcb6a4c44 → 0x9998675b
+    sk_filter_trim_cap   0xf5845708 → 0x43b2b8f0
+    task_is_scx          0xb3071c68 → 0x61658a4e
+★ 消失 ★
+    hmbird_transitioning 0x47330ca1   （定义 kernel/sched/hmbird/hmbird.c:95-96）
+```
+
+后果 —— `gate_vko_crc.py`：
+
+| 候选 | 会拒绝装载的模块 |
+|---|---|
+| `gate168/vmlinux.symvers`（CORE=y） | **0** |
+| `out-clean/vmlinux.symvers`（CORE=n） | **2** —— `system_dlkm/bluetooth.ko`（`sk_filter_trim_cap`）、`vendor_dlkm/oplus_bsp_sched_ext.ko`（`iso_masks` / `task_is_scx`） |
+
+报的是 `disagrees about version of symbol`（**不是** `Unknown symbol`）。属《发布规范》§七 第 10 条的砖机制（三次砖的同类）。
+
+**机制**：全树只有 **2 个**头文件被 `CONFIG_HMBIRD_SCHED_CORE` 门控（`grep -rl --include=*.h`）——
+`include/linux/sched.h:2489-2578`（`#include <linux/sched/hmbird.h>` + task 侧 helper 块）与
+`kernel/sched/sched.h:3409-3411`（`#include "hmbird.h"`，`struct hmbird_rq` 在 `kernel/sched/hmbird.h:198-219`）。
+CORE=n 时 genksyms 可见类型集改变 ⇒ 导出符号 CRC 随之改变。
+★（精确到 genksyms 内部哪条路径把 `iso_masks` / `sk_filter_trim_cap` 带上的，**没有追到** —— 只记实测事实与已定位的门控点。）★
+
+### 四、★顺带查出的两个坑（后来人必看）★
+
+1. ★**`out-core` 是脏构建目录**★：`out-core/Module.symvers`(10-15 15:35) = **好值** `0xcb6a4c44`，而 `out-core/vmlinux.symvers`(10-16 13:00) = **坏值** `0x9998675b` —— **同目录两个 symvers 互相矛盾** ⇒ 混了 CORE=y / CORE=n 两批 `.o`。**`opt169/170/171` 都建在它上面，产物不可信。** 基线一律用 `gateNNN/vmlinux.symvers` 这类**按版快照**。
+2. ★**config 只差一行**★：从 `gate168/Image.crc` 抽 IKCONFIG 与 CORE=n 的 `.config` 逐行 diff，**只差 2 行**（`CONFIG_HMBIRD_SCHED_CORE=y` vs `# ... is not set`）⇒ 不是别的 config 变化导致的。
+
+### 五、可复用架构事实
+
+- 厂商游戏调度 = **五段链**：内核 sched_class + 5 个厂商 `.ko` + 3 个用户态服务 + 参数库 + 云控注入。
+- **放置权在内核**（hmbird `sched_class` 抢 `select_task_rq`），**决策权在用户态**。
+- `game_pid` 是**整条链的唯一活性开关**，且**必须用户态写**。
+- `es4g` 真选核**必须 `governor=scx`**（5 个 `android_vh_scx_*` 钩子）。
+- 厂商 `.ko` 只依赖 10 个 hmbird 导出符号，★且只有 `oplus_bsp_sched_ext.ko` 一个模块要★；没有任何模块依赖 `oplus_bsp_sched_ext`；`game_opt` / `sched_assist` / `sched_walt` **不需要**任何「只有 hmbird 提供」的符号。
+
+### 六、两个仓本轮的实际动作
+
+| 仓 | 动作 |
+|---|---|
+| `gt5pro-hmbird`（公开） | 新增 `docs/opt163-opt172-收尾结论与暂缓-20261017.md`；`docs/changelog.md` 置顶 2026-10-17 条目；`docs/hmbird-内核态调度类-进展.md` 置顶「此后不再更新」；`README.md` 进度节加暂缓提示。提交 `6ddb51e` |
+| `gt5pro-kernel-lab`（私有） | 新增 `2026-10-17/`（README 索引 + `reports/` 4 篇 + `evidence/` 探针与 CSV）。提交 `02e1222` |
+
+### 七、未验证 / 待办
+
+1. hmbird 在线时 cpu5/6/7 被排除出调度视野的**机制未定位**（候选见第「三十四」章 §四）。此为暂缓的根因之一。
+2. 真实对局 FPS 被压的**压频来源未定案**（`f234` 1631 MHz）。
+3. 8 线程负载下 policy7 `scaling_cur_freq` 恒 672000，与 `load≈20` 不相称 —— **口径存疑**。
+4. 对非游戏应用的调度影响、长时日常使用对比 —— **未做**。
+5. 守护模块下一版（D4 版本闸门 + F1 内核自禁盲区）已修但**未发布、未上机**，随本方向搁置。
+
+### 八、本轮新增踩坑
+
+1. ★**PowerShell 传 `$VAR` 给 `wsl -- bash -lc '...'` 会被吃掉**★：命令里写成 `K=/path; ... $K/...`，到 bash 时 `$K` 已为空 ⇒ 报 `cannot open '/verify_image.sh'`。**判据**：输出里出现裸 `/xxx` 而不是完整路径。**解法**：把脚本写成 `.sh` 文件再 `wsl -- bash <file>`，不在 `-lc` 字符串里用 shell 变量。
+2. ★**`verify_image.sh` 在 git 里就是截断的**★：第 45 行 `if [ -n "$SUF" ] && printf '%s' "$SUF" | grep -qE 'opt[0-9]+` 之后整块缺失（`0e1f5b2` 起、`5e39cc5` 仍在），bash 报 `unexpected EOF while looking for matching \`'\`` 且**报在文件末行**（第 167 行），看着像末行的问题。本仓只有这一份副本，无未截断原件可还原。另该文件把编译器判据写死成 `clang version 17.0.2`，而 `opt16x` 全系实测是 `Ubuntu clang 18.1.3`（`out-pub`/`out-core`/`out-clean` 三套 `.config` 的 `CONFIG_CC_VERSION_TEXT` 一致，且 `opt168` 已上机正常）⇒ 每个 `opt16x` 件都会无条件 FAIL。
+3. ★**`git ls-remote` 之后 `git fetch --depth=1 --filter=blob:none origin refs/tags/<tag>` 可在不下载 blob 的前提下拿到整棵树的文件清单**★ —— 用来判「一个表示"源码已闭"的外部仓，旧 tag 里还有没有源码」很省流量（本次实测：某仓当前分支只有 2 个 README，但旧 tag 的树完整可读）。
